@@ -1,0 +1,212 @@
+This is the software bundle "SemanticPaint", created by:
+
+Stuart Golodetz <smg@robots.ox.ac.uk>
+Michael Sapienza <michael.sapienza@eng.ox.ac.uk>
+Tommaso Cavallari <tommaso@tommasocavallari.com>
+Nicholas A Lord <nicklord@robots.ox.ac.uk>
+Julien Valentin <julien.valentin@eng.ox.ac.uk>
+Vibhav Vineet <vibhav.vineet@gmail.com>
+Ming-Ming Cheng <cmm.thu@qq.com>
+Anurag Arnab <anurag.arnab@gmail.com>
+Stephen Hicks <stephen.hicks@ndcn.ox.ac.uk>
+Shahram Izadi <shahrami@microsoft.com>
+Philip H S Torr <philip.torr@eng.ox.ac.uk>
+
+It is built on top of InfiniTAM v3.5, a highly-efficient,
+open-source 3D reconstruction engine developed by Oxford's
+Active Vision Group. For more details about InfiniTAM v3.5,
+please get in touch with one of the following people:
+
+Victor Adrian Prisacariu <victor@robots.ox.ac.uk>
+Olaf Kaehler <olaf@robots.ox.ac.uk>
+Stuart Golodetz <smg@robots.ox.ac.uk>
+Tommaso Cavallari <tommaso@tommasocavallari.com>
+
+1. Building the System
+----------------------
+
+1.1 Overview
+
+SemanticPaint builds with CMake 3.8.2 and above on Windows, Ubuntu and Mac OS X.
+It has been tested on recent versions of all three operating systems, but may
+require additional work to build on older versions.
+
+1.2 Dependencies
+
+SemanticPaint depends on various 3rd party libraries. Some of these are
+required, in the sense that SemanticPaint will not function without them;
+others are optional, but skipping them will reduce functionality.
+
+Suitable versions of the required dependencies and some of the optional
+dependencies have been included in the repository, so SemanticPaint should
+build "out of the box". However, most users will probably want to install
+the remaining optional libraries in order to enable full functionality.
+
+  - ArrayFire (version 3.3.2)
+    Status: Optional (needed for touch interaction and median filtering)
+    Default: Disabled
+    Flag: WITH_ARRAYFIRE
+
+  - Boost (version 1.58.0)
+    Status: Required
+
+  - CUDA (version 7.5 or above)
+    Status: Optional (needed for GPU acceleration)
+    Default: Enabled
+    Flag: WITH_CUDA
+
+  - Eigen (version 3.2.2)
+    Status: Required
+
+  - GLEW (version 1.12.0)
+    Status: Required on Windows/Ubuntu
+
+  - InfiniTAM (version 3.5)
+    Status: Required
+
+  - Leap Motion SDK (version 2.2.1.24116)
+    Status: Optional (needed for experimental Leap Motion support)
+    Default: Disabled
+    Flag: WITH_LEAP
+
+  - Oculus SDK (version 0.5.0.1)
+    Status: Optional (needed for Oculus Rift support)
+    Default: Disabled
+    Flag: WITH_OVR
+
+  - OpenCV (version 3.1.0)
+    Status: Optional (needed for feature inspection mode)
+    Default: Disabled
+    Flag: WITH_OPENCV
+
+  - OpenGL
+    Status: Required
+
+  - OpenMP
+    Status: Optional, but recommended (needed for faster training/prediction)
+    Default: Disabled
+    Flag: WITH_OPENMP
+    Notes: Doesn't work on Mac OS X
+
+  - OpenNI (version 2)
+    Status: Optional, but recommended (needed for live reconstruction)
+    Default: Disabled
+    Flag: WITH_OPENNI
+
+  - SDL (version 2-2.0.7)
+    Status: Required
+
+  - Vicon SDK
+    Status: Optional (needed for the Vicon tracker)
+    Default: Disabled
+    Flag: WITH_VICON
+
+1.3 Build Process
+
+Common steps on all platforms:
+
+  a) Choose a root directory, hereafter referred to as <root>.
+
+  b) Clone the InfiniTAM repository into <root>/InfiniTAM.
+
+  c) Build the infinitam_v3.5 branch of InfiniTAM using CMake (using <root>/InfiniTAM/InfiniTAM/build as your build directory).
+
+  d) Clone SemanticPaint into <root>/spaint, e.g.
+
+     $ git clone git@github.com:torrvision/spaint.git spaint
+
+  e) Change to the spaint directory:
+
+     $ cd spaint
+
+1.3.1 Build Process (Windows)
+
+  f) Using a Bash shell (e.g. Git Bash, provided with msysgit), run the top-level build script, e.g. for VS2013:
+
+    $ ./build-win.sh 12 Release
+
+  g) Run the CMake GUI and specify <root>/spaint/build as the build directory.
+
+  h) Enable any optional libraries you want and supply the paths.
+
+  i) Reconfigure and regenerate the Visual Studio solution.
+
+  j) Build with the optional libraries enabled (just run the above build command again).
+
+1.3.2 Build Process (Unix)
+
+  f) Run the top-level build script:
+
+     $ ./build-nix.sh "Unix Makefiles" Release
+
+  g) Change to the build directory and run ccmake:
+
+     $ cd build
+     $ ccmake ..
+
+  h) Enable any optional libraries you want and supply the paths.
+
+  i) Reconfigure and regenerate the makefile.
+
+  j) Build with the optional libraries enabled, e.g.
+
+     $ make -j4
+
+2. Running the System
+---------------------
+
+The build process will build various applications, libraries and test
+programs in <root>/build. The main application can be found at:
+
+<root>/build/bin/apps/spaintgui/spaintgui
+
+It can be run "out of the box" from any working directory for live
+reconstruction, provided you have built with OpenNI support.
+
+If you want to reconstruct from data stored on disk (e.g. the Teddy
+sequence that is used in InfiniTAM), you can call the application
+as follows:
+
+$ ./spaintgui -c <path>/Teddy/calib.txt -r <path>/Teddy/Frames/%04i.ppm -d <path>/Teddy/Frames/%04i.pgm
+
+The arguments specify a text file containing calibration parameters,
+and masks for the RGB and depth images in the input sequence.
+
+Note that spaintgui also supports its own saving/loading of sequences
+to/from the <root>/build/bin/apps/spaintgui/sequences subdirectory.
+These can be loaded straightforwardly via:
+
+$ ./spaintgui -s <sequence name>
+
+3. Additional Documentation
+---------------------------
+
+Further details about the original concept for SemanticPaint can be
+found in the following paper:
+
+SemanticPaint: Interactive 3D Labeling and Learning at your Fingertips.
+ACM Transactions on Graphics, 34(5), August 2015.
+
+There is also a technical report that describes this implementation of
+the SemanticPaint concept:
+
+SemanticPaint: A Framework for the Interactive Segmentation of 3D Scenes.
+arXiv e-print 1510.03727, October 2015.
+
+4. Troubleshooting Tips
+-----------------------
+
+If you have any trouble with the build, here are some of the likely causes:
+
+* The CMake executable is not on your path.
+* The MSBuild executable is not on your path. (Windows)
+* The Visual C++ compiler (cl.exe) is not on your path. (Windows)
+* The latest Visual Studio updates have not been installed. (Windows)
+* You're using a version of CMake that has a CUDA compilation bug (e.g. an early version of 3.11). Try CMake 3.9 instead. (Windows)
+* You built Boost other than with the build script (which contains some bug fixes). Please use the build script :)
+
+History:
+
+2017-AUG-08: second public release
+2015-SEP-26: first public release
+2015-JUL-23: initial draft

@@ -1,0 +1,29 @@
+build*/
+compile_commands.json
+docs/
+install/
+libraries/alglib/
+libraries/arrayfire*/
+libraries/boost_1_*/
+libraries/boost-setup/
+libraries/ceres-solver-1.11.0/
+libraries/Eigen-3.2.2/
+libraries/glew-1.12.0/
+libraries/glog-0.3.4/
+libraries/lodepng*/
+libraries/opencv*/
+libraries/SDL2-2.0.*/
+libraries/setup/boost_1_58_0/
+libraries/tbb43_20150611oss/
+libraries/vicon/
+libraries/*.log
+*.tags
+tags
+tests/mike/
+*.swp
+
+# QtCreator CMake
+CMakeLists.txt.user*
+
+# CLion
+\.idea/

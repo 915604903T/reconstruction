@@ -1,0 +1,20 @@
+#JSGF V1.0;
+
+grammar spaint;
+
+import <commands.standard_commands>;
+
+public <commands> = <standard_commands> ;
+
+/**
+ * A grammar for Semantic Paint.
+ */
+public <spaint> =
+  disable fusion |
+  enable fusion |
+  switch to correction mode |
+  switch to normal mode |
+  switch to prediction mode |
+  switch to propagation mode |
+  switch to smoothing mode |
+  switch to training mode |
