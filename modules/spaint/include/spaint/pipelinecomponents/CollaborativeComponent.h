@@ -6,6 +6,8 @@
 #ifndef H_SPAINT_COLLABORATIVECOMPONENT
 #define H_SPAINT_COLLABORATIVECOMPONENT
 
+#include <queue>
+
 #include <boost/atomic.hpp>
 #include <boost/thread.hpp>
 #include <boost/timer/timer.hpp>

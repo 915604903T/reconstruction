@@ -61,7 +61,7 @@ CollaborativeComponent::~CollaborativeComponent()
   // m_readyToRelocalise.notify_one();
   m_readyToRelocalise.notify_all();
   for (int i=0; i<relocalisationThreadsCount; i++) {
-    m_relocalisationThread[i].join();
+    m_relocalisationThreads[i].join();
   }
   // m_relocalisationThread.join();
 
