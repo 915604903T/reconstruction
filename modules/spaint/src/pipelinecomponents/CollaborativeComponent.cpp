@@ -623,7 +623,7 @@ void CollaborativeComponent::try_schedule_relocalisation()
     // Schedule the best candidate for relocalisation.
     // m_bestCandidate.reset(new CollaborativeRelocalisation(candidates.back()));
     auto now_bestCandidate = new CollaborativeRelocalisation(candidates.back());
-    m_bestCandidates.push_back(now_bestCandidate);
+    m_bestCandidates.push(now_bestCandidate);
 
     // If we're in batch mode, record the index of the frame we're trying in case we want to avoid frames with similar poses later.
     if(m_mode == CM_BATCH)
