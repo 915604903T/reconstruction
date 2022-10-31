@@ -21,6 +21,9 @@
 
 namespace spaint {
 
+const int relocalisationThreadsCount = 5;
+const int bestCandidateMaxCount = 5;
+
 /**
  * \brief An instance of this pipeline component can be used to determine the relative poses between agents participating in collaborative SLAM.
  */
@@ -30,6 +33,8 @@ class CollaborativeComponent
 private:
   /** The best relocalisation candidate, as chosen by the scheduler. This will be the next relocalisation attempted. */
   boost::shared_ptr<CollaborativeRelocalisation> m_bestCandidate;
+
+  std::queue<boost::shared_ptr<CollaborativeRelocalisation>> m_bestCandidates = std::queue<boost::shared_ptr<CollaborativeRelocalisation>>();
 
   /** The timer used to compute the time spent collaborating. */
   boost::optional<boost::timer::cpu_timer> m_collaborationTimer;
@@ -60,6 +65,8 @@ private:
 
   /** The thread on which relocalisations should be attempted. */
   boost::thread m_relocalisationThread;
+
+  std::vector<boost::thread> m_relocalisationThreads = std::vector<boost::thread>(relocalisationThreadsCount);
 
   /** The results of every relocalisation that has been attempted. */
   std::deque<CollaborativeRelocalisation> m_results;
