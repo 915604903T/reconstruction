@@ -8,6 +8,9 @@ using namespace ITMLib;
 using namespace ORUtils;
 using namespace itmx;
 
+#include <unistd.h>
+#include <sys/syscall.h>
+
 #include <algorithm>
 
 #include <boost/bind.hpp>
@@ -366,8 +369,8 @@ void CollaborativeComponent::output_results() const
 
 void CollaborativeComponent::run_relocalisation()
 {
-  auto tid = std::this_thread::get_id();
-  std::cout << "this is " << tid << " thread\n";
+  int tid = syscall(SYS_gettid);
+  std::cout << tid << "\n";
 
   while(!m_stopRelocalisationThread)
   {
@@ -388,7 +391,7 @@ void CollaborativeComponent::run_relocalisation()
     m_bestCandidates.pop();
     m_mutex.unlock();
 
-    std::cout << "Attempting to relocalise frame " << now_bestCandidate->m_frameIndexJ << " of " << now_bestCandidate->m_sceneJ << " against " << now_bestCandidate->m_sceneI << "...";
+    std::cout << tid <<" : Attempting to relocalise frame " << now_bestCandidate->m_frameIndexJ << " of " << now_bestCandidate->m_sceneJ << " against " << now_bestCandidate->m_sceneI << "...";
     // std::cout << "Attempting to relocalise frame " << m_bestCandidate->m_frameIndexJ << " of " << m_bestCandidate->m_sceneJ << " against " << m_bestCandidate->m_sceneI << "...";
 
     // Render synthetic images of the source scene from the relevant pose and copy them across to the GPU for use by the relocaliser.
@@ -622,7 +625,8 @@ void CollaborativeComponent::try_schedule_relocalisation()
 
     // Schedule the best candidate for relocalisation.
     // m_bestCandidate.reset(new CollaborativeRelocalisation(candidates.back()));
-    auto now_bestCandidate = new CollaborativeRelocalisation(candidates.back());
+    // auto now_bestCandidate = new CollaborativeRelocalisation(candidates.back());
+	boost::shared_ptr<CollaborativeRelocalisation> now_bestCandidate(new CollaborativeRelocalisation(candidates.back()));
     m_bestCandidates.push(now_bestCandidate);
 
     // If we're in batch mode, record the index of the frame we're trying in case we want to avoid frames with similar poses later.
