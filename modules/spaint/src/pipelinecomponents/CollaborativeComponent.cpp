@@ -24,9 +24,44 @@ using boost::bind;
 #include <orx/relocalisation/Relocaliser.h>
 using namespace orx;
 
-#include <thread>
+#include <string>
+#include <cstdio>
+#include <cstring>
 
 #define DEBUGGING 0
+
+int parseLine(char *line) {
+    // This assumes that a digit will be found and the line ends in " Kb".
+    int i = strlen(line);
+    const char *p = line;
+    while (*p < '0' || *p > '9') p++;
+    line[i - 3] = '\0';
+    i = atoi(p);
+    return i;
+}
+typedef struct {
+    uint32_t virtualMem;
+    uint32_t physicalMem;
+} processMem_t;
+processMem_t GetProcessMemory() {
+    FILE *file = fopen("/proc/self/status", "r");
+    char line[128];
+    processMem_t processMem;
+
+    while (fgets(line, 128, file) != NULL) {
+        if (strncmp(line, "VmSize:", 7) == 0) {
+            processMem.virtualMem = parseLine(line);
+            break;
+        }
+
+        if (strncmp(line, "VmRSS:", 6) == 0) {
+            processMem.physicalMem = parseLine(line);
+            break;
+        }
+    }
+    fclose(file);
+    return processMem;
+}
 
 namespace spaint {
 
@@ -390,7 +425,6 @@ void CollaborativeComponent::run_relocalisation()
     auto now_bestCandidate = m_bestCandidates.front();
     m_bestCandidates.pop_front();
     m_mutex.unlock();
-
     std::cout << tid <<" : Attempting to relocalise frame " << now_bestCandidate->m_frameIndexJ << " of " << now_bestCandidate->m_sceneJ << " against " << now_bestCandidate->m_sceneI << "...";
     // std::cout << "Attempting to relocalise frame " << m_bestCandidate->m_frameIndexJ << " of " << m_bestCandidate->m_sceneJ << " against " << m_bestCandidate->m_sceneI << "...";
 
@@ -537,7 +571,6 @@ void CollaborativeComponent::run_relocalisation()
 	  now_bestCandidate.reset();
       // m_bestCandidate.reset();
     }
-
     // In live mode, allow a bit of extra time for training before running the next relocalisation.
     // FIXME: This is a bit hacky - we might want to improve this in the future.
     if(m_mode == CM_LIVE) boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
@@ -629,7 +662,6 @@ void CollaborativeComponent::try_schedule_relocalisation()
     // auto now_bestCandidate = new CollaborativeRelocalisation(candidates.back());
 	  boost::shared_ptr<CollaborativeRelocalisation> now_bestCandidate(new CollaborativeRelocalisation(candidates.back()));
     m_bestCandidates.push_back(now_bestCandidate);
-
     // If we're in batch mode, record the index of the frame we're trying in case we want to avoid frames with similar poses later.
     if(m_mode == CM_BATCH)
     {
