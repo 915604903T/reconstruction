@@ -534,7 +534,7 @@ void CollaborativeComponent::run_relocalisation()
 #if DEBUGGING
       m_results.push_back(*m_bestCandidate);
 #endif
-      std::cout << "this is use_count: " << now_bestCandidate.use_count() << "\n";
+	  now_bestCandidate.reset();
       // m_bestCandidate.reset();
     }
 
