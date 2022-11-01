@@ -6,8 +6,6 @@
 #ifndef H_SPAINT_COLLABORATIVECOMPONENT
 #define H_SPAINT_COLLABORATIVECOMPONENT
 
-#include <queue>
-
 #include <boost/atomic.hpp>
 #include <boost/thread.hpp>
 #include <boost/timer/timer.hpp>
@@ -36,7 +34,7 @@ private:
   /** The best relocalisation candidate, as chosen by the scheduler. This will be the next relocalisation attempted. */
   boost::shared_ptr<CollaborativeRelocalisation> m_bestCandidate;
 
-  std::queue<boost::shared_ptr<CollaborativeRelocalisation>> m_bestCandidates = std::queue<boost::shared_ptr<CollaborativeRelocalisation>>();
+  std::list<boost::shared_ptr<CollaborativeRelocalisation>> m_bestCandidates = std::list<boost::shared_ptr<CollaborativeRelocalisation>>();
 
   /** The timer used to compute the time spent collaborating. */
   boost::optional<boost::timer::cpu_timer> m_collaborationTimer;

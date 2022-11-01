@@ -388,7 +388,7 @@ void CollaborativeComponent::run_relocalisation()
     }
     m_mutex.lock();
     auto now_bestCandidate = m_bestCandidates.front();
-    m_bestCandidates.pop();
+    m_bestCandidates.pop_front();
     m_mutex.unlock();
 
     std::cout << tid <<" : Attempting to relocalise frame " << now_bestCandidate->m_frameIndexJ << " of " << now_bestCandidate->m_sceneJ << " against " << now_bestCandidate->m_sceneI << "...";
@@ -628,7 +628,7 @@ void CollaborativeComponent::try_schedule_relocalisation()
     // m_bestCandidate.reset(new CollaborativeRelocalisation(candidates.back()));
     // auto now_bestCandidate = new CollaborativeRelocalisation(candidates.back());
 	  boost::shared_ptr<CollaborativeRelocalisation> now_bestCandidate(new CollaborativeRelocalisation(candidates.back()));
-    m_bestCandidates.push(now_bestCandidate);
+    m_bestCandidates.push_back(now_bestCandidate);
 
     // If we're in batch mode, record the index of the frame we're trying in case we want to avoid frames with similar poses later.
     if(m_mode == CM_BATCH)
