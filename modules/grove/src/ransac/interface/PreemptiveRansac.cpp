@@ -134,20 +134,20 @@ void PreemptiveRansac::update_candidate_poses()
 
   std::unordered_set<int> threadCnt{};
   boost::mutex m;
+  int ttid = syscall(SYS_gettid);
 #ifdef WITH_OPENMP
   #pragma omp parallel for schedule(dynamic)
 #endif
   for(int i = 0; i < nbPoseCandidates; ++i)
   {
 	  int tid = syscall(SYS_gettid);
-	  std::cout << "break 1\n";
 	  m.lock();
 	  threadCnt.insert(tid);
 	  m.unlock();
 	  // std::cout << tid << ": in update_candidate_poses openmp\n";
     update_candidate_pose(i);
   }
-  std::cout << "this is cnt size in update_candidate_poses: " <<threadCnt.size() <<"\n";
+  std::cout << ttid <<  ": this is cnt size in update_candidate_poses: " <<threadCnt.size() <<"\n";
 	sleep(35);
 }
 
@@ -341,6 +341,7 @@ void PreemptiveRansac::compute_candidate_poses_kabsch()
 #endif
 	boost::mutex m;
 	std::unordered_set<int> threadCnt{};
+	int ttid = syscall(SYS_gettid);
   // For each candidate:
 #ifdef WITH_OPENMP
   #pragma omp parallel for
@@ -365,7 +366,7 @@ void PreemptiveRansac::compute_candidate_poses_kabsch()
     // Run the Kabsch algorithm and store the resulting camera -> world transformation in the candidate's cameraPose matrix.
     Eigen::Map<Eigen::Matrix4f>(candidate.cameraPose.m) = GeometryUtil::estimate_rigid_transform(cameraPoints, worldPoints);
   }
-  std::cout << "this is cnt size in compute_candidate_poses_kabsch: " << threadCnt.size() <<"\n";
+  std::cout << ttid << ": this is cnt size in compute_candidate_poses_kabsch: " << threadCnt.size() <<"\n";
   sleep(35);
 }
 
