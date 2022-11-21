@@ -141,14 +141,14 @@ void PreemptiveRansac::update_candidate_poses()
   for(int i = 0; i < nbPoseCandidates; ++i)
   {
 	  int tid = syscall(SYS_gettid);
-	  m.lock();
-	  threadCnt.insert(tid);
-	  m.unlock();
+	  // m.lock();
+	  // threadCnt.insert(tid);
+	  // m.unlock();
 	  // std::cout << tid << ": in update_candidate_poses openmp\n";
     update_candidate_pose(i);
   }
   std::cout << ttid <<  ": this is cnt size in update_candidate_poses: " <<threadCnt.size() <<"\n";
-	sleep(35);
+  // sleep(35);
 }
 
 
@@ -355,10 +355,10 @@ void PreemptiveRansac::compute_candidate_poses_kabsch()
     Eigen::Matrix3f worldPoints;
     for(int i = 0; i < PoseCandidate::KABSCH_CORRESPONDENCES_NEEDED; ++i)
     {
-		int tid = syscall(SYS_gettid);
-		m.lock();
-		threadCnt.insert(tid);
-		m.unlock();
+//		int tid = syscall(SYS_gettid);
+// 		m.lock();
+// 		threadCnt.insert(tid);
+// 		m.unlock();
 		//std::cout << tid << ": in compute_candidate_poses_kabsch openmp\n";
       cameraPoints.col(i) = Eigen::Map<const Eigen::Vector3f>(candidate.pointsCamera[i].v);
       worldPoints.col(i) = Eigen::Map<const Eigen::Vector3f>(candidate.pointsWorld[i].v);
@@ -367,7 +367,7 @@ void PreemptiveRansac::compute_candidate_poses_kabsch()
     Eigen::Map<Eigen::Matrix4f>(candidate.cameraPose.m) = GeometryUtil::estimate_rigid_transform(cameraPoints, worldPoints);
   }
   std::cout << ttid << ": this is cnt size in compute_candidate_poses_kabsch: " << threadCnt.size() <<"\n";
-  sleep(35);
+  //sleep(35);
 }
 
 void PreemptiveRansac::reset_inliers(bool resetMask)

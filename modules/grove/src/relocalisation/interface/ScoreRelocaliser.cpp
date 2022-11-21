@@ -8,6 +8,8 @@ using namespace ORUtils;
 using namespace tvgutil;
 
 #include <boost/filesystem.hpp>
+#include <unistd.h>
+#include <sys/syscall.h>
 namespace bf = boost::filesystem;
 
 #include <orx/base/MemoryBlockFactory.h>
@@ -129,6 +131,7 @@ std::vector<Relocaliser::Result> ScoreRelocaliser::relocalise(const ORUChar4Imag
 
   std::vector<Result> results;
 
+  int tid = syscall(SYS_gettid);
   // Iff we have enough valid depth values, try to estimate the camera pose:
   if(m_preemptiveRansac->count_valid_depths(depthImage) > m_preemptiveRansac->get_min_nb_required_points())
   {
@@ -138,10 +141,10 @@ std::vector<Relocaliser::Result> ScoreRelocaliser::relocalise(const ORUChar4Imag
 
     // Step 2: Create a single SCoRe prediction (a single set of clusters) for each keypoint.
     make_predictions(colourImage);
-
+	std::cout << tid << ": b9 after make_predictions\n";
     // Step 3: Perform P-RANSAC to try to estimate the camera pose.
     boost::optional<PoseCandidate> poseCandidate = m_preemptiveRansac->estimate_pose(m_keypointsImage, m_predictionsImage);
-
+	std::cout << tid << ": b10 after estimate_pose\n";
     // Step 4: If we succeeded in estimating a camera pose:
     if(poseCandidate)
     {
