@@ -21,8 +21,8 @@
 
 namespace spaint {
 
-const int relocalisationThreadsCount = 3;
-const int bestCandidateMaxCount = 3;
+const int relocalisationThreadsCount = 2;
+const int bestCandidateMaxCount = 2;
 
 /**
  * \brief An instance of this pipeline component can be used to determine the relative poses between agents participating in collaborative SLAM.

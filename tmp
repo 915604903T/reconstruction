@@ -1,0 +1,47 @@
+#include <sys/time.h>
+int totalRelocalise = 0;
+double totalRelocaliset0 = 0.0;
+double totalRelocaliset1 = 0.0;
+double totalRelocaliset2 = 0.0;
+int totalGetBestPose = 0;
+double totalGetBestPoset = 0.0;
+std::cout << "in ~ScoreRelocaliser()\n";
+    if (totalRelocalise!=0) {
+        std::cout << "totalRelocalise: " << totalRelocalise << "\n";
+        std::cout << "average t0: " << totalRelocaliset0/(double)totalRelocalise << "ms\n";
+        std::cout << "average t1: " << totalRelocaliset1/(double)totalRelocalise << "ms\n";
+        std::cout << "average t2: " << totalRelocaliset2/(double)totalRelocalise << "ms\n";
+    }
+    if (totalGetBestPose!=0) {
+        std::cout << "totalGetBestPose: " << totalGetBestPose << "\n";
+        std::cout << "average t3: " << totalGetBestPoset/(double)totalGetBestPose << "ms\n";
+    }
+
+	totalRelocalise++;
+	struct timeval t0, t1;
+    double t_cost;
+    gettimeofday(&t0,NULL);
+	
+	t_cost = (t1.tv_sec - t0.tv_sec)*1000.0 + (double)(t1.tv_usec - t0.tv_usec)/1000.0;
+    std::cout << "1. compute_keypoints_and_features time cost: " << t_cost << "ms\n";
+    totalRelocaliset0 += t_cost;
+
+
+	gettimeofday(&t1,NULL);
+    t_cost = (t1.tv_sec - t0.tv_sec)*1000.0 + (double)(t1.tv_usec - t0.tv_usec)/1000.0;
+    std::cout << "2. make_predictions time cost: " << t_cost << "ms\n";
+    totalRelocaliset1 += t_cost;
+
+
+	gettimeofday(&t1,NULL);
+    t_cost = (t1.tv_sec - t0.tv_sec)*1000.0 + (double)(t1.tv_usec - t0.tv_usec)/1000.0;
+    std::cout << "3. estimate_pose time cost: " << t_cost << "ms\n";
+    totalRelocaliset2 += t_cost;
+
+
+		totalGetBestPose++;
+        gettimeofday(&t0,NULL);
+		 gettimeofday(&t1,NULL);
+        t_cost = (t1.tv_sec - t0.tv_sec)*1000.0 + (double)(t1.tv_usec - t0.tv_usec)/1000.0;
+        std::cout << "4. get_best_poses time cost: " << t_cost << "ms\n";
+        totalGetBestPoset += t_cost;
