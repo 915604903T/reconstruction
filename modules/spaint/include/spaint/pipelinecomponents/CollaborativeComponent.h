@@ -10,6 +10,9 @@
 #include <boost/thread.hpp>
 #include <boost/timer/timer.hpp>
 
+#include <string.h>
+#include <sched.h>
+
 #include <orx/relocalisation/Relocaliser.h>
 
 #include <tvgutil/numbers/RandomNumberGenerator.h>
@@ -155,7 +158,8 @@ private:
   /**
    * \brief Runs the relocalisation thread, repeatedly attempting scheduled relocalisations until the collaborative component is destroyed.
    */
-  void run_relocalisation();
+  // void run_relocalisation();
+  void run_relocalisation(cpu_set_t *mask);
 
   /**
    * \brief Scores all of the specified candidate relocalisations to allow one of them to be chosen for a relocalisation attempt.
