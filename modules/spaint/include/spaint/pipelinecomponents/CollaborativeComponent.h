@@ -24,8 +24,8 @@
 
 namespace spaint {
 
-const int relocalisationThreadsCount = 3;
-const int bestCandidateMaxCount = 3;
+const int relocalisationThreadsCount = 4;
+const int bestCandidateMaxCount = 4;
 
 /**
  * \brief An instance of this pipeline component can be used to determine the relative poses between agents participating in collaborative SLAM.
@@ -159,7 +159,7 @@ private:
    * \brief Runs the relocalisation thread, repeatedly attempting scheduled relocalisations until the collaborative component is destroyed.
    */
   // void run_relocalisation();
-  void run_relocalisation(cpu_set_t *mask);
+  void run_relocalisation(cpu_set_t mask);
 
   /**
    * \brief Scores all of the specified candidate relocalisations to allow one of them to be chosen for a relocalisation attempt.

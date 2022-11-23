@@ -87,10 +87,11 @@ CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& c
   for (int i=0; i<relocalisationThreadsCount; i++) {
     cpu_set_t mask;
     CPU_ZERO(&mask);
+	std::cout << "for " << i << "relocalisationThread: " << i*average << "~" << (i+1)*average-1 << "\n"; 
     for (int j=i*average; j<cpuCnt&&j<(i+1)*average; j++) {
       CPU_SET(j, &mask);
     }
-    m_relocalisationThreads[i] = boost::thread(boost::bind(&CollaborativeComponent::run_relocalisation, this, &mask));
+    m_relocalisationThreads[i] = boost::thread(boost::bind(&CollaborativeComponent::run_relocalisation, this, mask));
   }
   // m_relocalisationThread = boost::thread(boost::bind(&CollaborativeComponent::run_relocalisation, this));
 
@@ -410,12 +411,12 @@ void CollaborativeComponent::output_results() const
 }
 
 // void CollaborativeComponent::run_relocalisation()
-void CollaborativeComponent::run_relocalisation(cpu_set_t *mask)
+void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
 {
   auto tid = syscall(SYS_gettid);
   std::cout << tid << "\n";
 
-  if (sched_setaffinity(tid, sizeof(mask), mask) < 0) {
+  if (sched_setaffinity(tid, sizeof(mask), &mask) < 0) {
     std::cout << "set thread affinity failed\n";
   }else {
     std::cout << "set " << tid << "to cpu set: " << mask << "\n";
