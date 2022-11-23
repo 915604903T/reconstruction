@@ -80,7 +80,8 @@ CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& c
   const std::string settingsNamespace = "CollaborativeComponent.";
   m_considerPoorRelocalisations = settings->get_first_value<bool>(settingsNamespace + "considerPoorRelocalisations", mode == CM_LIVE);
   m_stopAtFirstConsistentReconstruction = settings->get_first_value<bool>(settingsNamespace + "stopAtFirstConsistentReconstruction", false);
-  m_timeCollaboration = settings->get_first_value<bool>(settingsNamespace + "timeCollaboration", false);
+  // m_timeCollaboration = settings->get_first_value<bool>(settingsNamespace + "timeCollaboration", false);
+  m_timeCollaboration = true;
 
   for (int i=0; i<relocalisationThreadsCount; i++) {
     m_relocalisationThreads[i] = boost::thread(boost::bind(&CollaborativeComponent::run_relocalisation, this));

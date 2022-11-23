@@ -136,7 +136,7 @@ void PreemptiveRansac::update_candidate_poses()
   boost::mutex m;
   int ttid = syscall(SYS_gettid);
 #ifdef WITH_OPENMP
-  #pragma omp parallel for schedule(dynamic)
+  #pragma omp parallel for schedule(dynamic) num_threads(24)
 #endif
   for(int i = 0; i < nbPoseCandidates; ++i)
   {
@@ -344,7 +344,7 @@ void PreemptiveRansac::compute_candidate_poses_kabsch()
 	int ttid = syscall(SYS_gettid);
   // For each candidate:
 #ifdef WITH_OPENMP
-  #pragma omp parallel for
+  #pragma omp parallel for num_threads(16)
 #endif
   for(int candidateIdx = 0; candidateIdx < nbPoseCandidates; ++candidateIdx)
   {
