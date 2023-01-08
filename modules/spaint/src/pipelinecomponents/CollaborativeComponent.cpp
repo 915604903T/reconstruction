@@ -420,7 +420,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
   if (sched_setaffinity(tid, sizeof(mask), &mask) < 0) {
     std::cout << "set thread affinity failed\n";
   }else {
-    std::cout << "set " << tid << "to cpu set: " << mask << "\n";
+    std::cout << "set " << tid << "to cpu set \n";
   }
   while(!m_stopRelocalisationThread)
   {
