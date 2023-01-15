@@ -155,29 +155,29 @@ std::vector<Relocaliser::Result> ScoreRelocaliser::relocalise(const ORUChar4Imag
   {
     // Step 1: Extract keypoints from the RGB-D image and compute descriptors for them.
     // FIXME: We only need to compute the descriptors if we're using the forest.
-	totalRelocalise++;
-	struct timeval t0, t1;
-	double t_cost;
+    totalRelocalise++;
+    struct timeval t0, t1;
+    double t_cost;
     gettimeofday(&t0,NULL);
     m_featureCalculator->compute_keypoints_and_features(colourImage, depthImage, depthIntrinsics, m_keypointsImage.get(), m_descriptorsImage.get());
-	gettimeofday(&t1,NULL);
-	t_cost = (t1.tv_sec - t0.tv_sec)*1000.0 + (double)(t1.tv_usec - t0.tv_usec)/1000.0;
-	// std::cout << "1. compute_keypoints_and_features time cost: " << t_cost << "ms\n";
-	totalRelocaliset0 += t_cost;
+    gettimeofday(&t1,NULL);
+    t_cost = (t1.tv_sec - t0.tv_sec)*1000.0 + (double)(t1.tv_usec - t0.tv_usec)/1000.0;
+    // std::cout << "1. compute_keypoints_and_features time cost: " << t_cost << "ms\n";
+    totalRelocaliset0 += t_cost;
     // Step 2: Create a single SCoRe prediction (a single set of clusters) for each keypoint.
-	gettimeofday(&t0,NULL);
+    gettimeofday(&t0,NULL);
     make_predictions(colourImage);
-	gettimeofday(&t1,NULL);
-	t_cost = (t1.tv_sec - t0.tv_sec)*1000.0 + (double)(t1.tv_usec - t0.tv_usec)/1000.0;
-	// std::cout << "2. make_predictions time cost: " << t_cost << "ms\n";
-	totalRelocaliset1 += t_cost;
+    gettimeofday(&t1,NULL);
+    t_cost = (t1.tv_sec - t0.tv_sec)*1000.0 + (double)(t1.tv_usec - t0.tv_usec)/1000.0;
+    // std::cout << "2. make_predictions time cost: " << t_cost << "ms\n";
+    totalRelocaliset1 += t_cost;
     // Step 3: Perform P-RANSAC to try to estimate the camera pose.
-	gettimeofday(&t0,NULL);
+    gettimeofday(&t0,NULL);
     boost::optional<PoseCandidate> poseCandidate = m_preemptiveRansac->estimate_pose(m_keypointsImage, m_predictionsImage);
-	gettimeofday(&t1,NULL);
-	t_cost = (t1.tv_sec - t0.tv_sec)*1000.0 + (double)(t1.tv_usec - t0.tv_usec)/1000.0;
-	//std::cout << "3. estimate_pose time cost: " << t_cost << "ms\n";
-	totalRelocaliset2 += t_cost;
+	  gettimeofday(&t1,NULL);
+	  t_cost = (t1.tv_sec - t0.tv_sec)*1000.0 + (double)(t1.tv_usec - t0.tv_usec)/1000.0;
+	  //std::cout << "3. estimate_pose time cost: " << t_cost << "ms\n";
+	  totalRelocaliset2 += t_cost;
     // Step 4: If we succeeded in estimating a camera pose:
     if(poseCandidate)
     {
@@ -193,13 +193,13 @@ std::vector<Relocaliser::Result> ScoreRelocaliser::relocalise(const ORUChar4Imag
       {
         // Get all of the candidates that survived the initial culling process during P-RANSAC.
         std::vector<PoseCandidate> candidates;
-		totalGetBestPose++;
-		gettimeofday(&t0,NULL);
-		m_preemptiveRansac->get_best_poses(candidates);
-		gettimeofday(&t1,NULL);
-		t_cost = (t1.tv_sec - t0.tv_sec)*1000.0 + (double)(t1.tv_usec - t0.tv_usec)/1000.0;
-		std::cout << "4. get_best_poses time cost: " << t_cost << "ms\n";
-		totalGetBestPoset += t_cost;
+		    totalGetBestPose++;
+        gettimeofday(&t0,NULL);
+        m_preemptiveRansac->get_best_poses(candidates);
+        gettimeofday(&t1,NULL);
+        t_cost = (t1.tv_sec - t0.tv_sec)*1000.0 + (double)(t1.tv_usec - t0.tv_usec)/1000.0;
+        std::cout << "4. get_best_poses time cost: " << t_cost << "ms\n";
+        totalGetBestPoset += t_cost;
         // Add the best candidates to the results (skipping the first one, since it's the same one returned by estimate_pose above).
         const size_t maxElements = std::min<size_t>(candidates.size(), m_maxRelocalisationsToOutput);
         for(size_t i = 1; i < maxElements; ++i)

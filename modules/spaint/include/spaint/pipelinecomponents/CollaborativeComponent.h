@@ -26,6 +26,10 @@ namespace spaint {
 
 const int relocalisationThreadsCount = 4;
 const int bestCandidateMaxCount = 4;
+/** semantic analyse frames count*/
+const int frameCount = 3;
+/** interval for frame similarity check*/
+const int frameInterval = 5;
 
 /**
  * \brief An instance of this pipeline component can be used to determine the relative poses between agents participating in collaborative SLAM.
@@ -37,6 +41,7 @@ private:
   /** The best relocalisation candidate, as chosen by the scheduler. This will be the next relocalisation attempted. */
   boost::shared_ptr<CollaborativeRelocalisation> m_bestCandidate;
 
+  /** The best relocalisation candidates list, as chosen by the scheduler. This will be the next relocalisation attempted. */
   std::list<boost::shared_ptr<CollaborativeRelocalisation>> m_bestCandidates = std::list<boost::shared_ptr<CollaborativeRelocalisation>>();
 
   /** The timer used to compute the time spent collaborating. */
@@ -69,6 +74,7 @@ private:
   /** The thread on which relocalisations should be attempted. */
   boost::thread m_relocalisationThread;
 
+  /** The threads on which relocalisations should be attempted. */
   std::vector<boost::thread> m_relocalisationThreads = std::vector<boost::thread>(relocalisationThreadsCount);
 
   /** The results of every relocalisation that has been attempted. */

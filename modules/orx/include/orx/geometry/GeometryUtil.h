@@ -20,6 +20,18 @@
 namespace orx {
 
 /**
+ * \brief This struct provides weighted pose define.
+ */
+struct weightedPose {
+    weightedPose(ORUtils::SE3Pose pose, double weight) {
+      this->pose = pose;
+      this->weight = weight;
+    }
+    ORUtils::SE3Pose pose;
+    double weight;
+  };
+
+/**
  * \brief This struct provides a number of useful geometric utility functions.
  */
 struct GeometryUtil
@@ -33,7 +45,13 @@ struct GeometryUtil
    * \return      The refined pose.
    */
   static ORUtils::SE3Pose blend_poses(const std::vector<ORUtils::SE3Pose>& poses);
-
+  /**
+   * \brief  Blends a set of poses together based on their weight to construct a refined pose.
+   *
+   * \param weightedPoses The poses to blend.
+   * \return      The refined pose.
+   */
+  static ORUtils::SE3Pose blend_weighted_poses(const std::vector<weightedPose>& weightedPoses);
   /**
    * \brief Converts a dual quaternion to an SE(3) pose.
    *

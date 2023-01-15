@@ -39,10 +39,12 @@ int parseLine(char *line) {
     i = atoi(p);
     return i;
 }
+
 typedef struct {
     uint32_t virtualMem;
     uint32_t physicalMem;
 } processMem_t;
+
 processMem_t GetProcessMemory() {
     FILE *file = fopen("/proc/self/status", "r");
     char line[128];
@@ -62,6 +64,65 @@ processMem_t GetProcessMemory() {
     fclose(file);
     return processMem;
 }
+
+/** Calculate similarity between two pic based on Phash*/
+std::string pHashValue(cv::Mat &srcImg) { // Calculate picture phash
+	cv::Mat img, dstImg;
+	std::string rst(64, '\0');
+
+	double dIndex[64];
+	double mean = 0.0;
+	int k = 0;
+
+	if (srcImg.channels() == 3) {
+		cv::cvtColor(srcImg, srcImg, CV_BGR2GRAY);
+		img = Mat_<double>(srcImg);
+	}
+	else {
+		img = Mat_<double>(srcImg);
+	}
+
+	cv::resize(img, img, Size(32, 32));
+	cv::dct(img, dstImg);
+
+	for (int i = 0; i < 8; i++) {
+		for (int j = 0; j < 8; j++) {
+			dIndex[k] = dstImg.at<double>(i, j);
+			mean += dstImg.at<double>(i, j) / 64;
+			++k;
+		}
+	}
+  //Calculate hash
+	for (int i = 0; i < 64; ++i) {
+		if (dIndex[i] >= mean) {
+			rst[i] = '1';
+		}
+		else {
+			rst[i] = '0';
+		}
+	}
+
+	return rst;
+}
+int hammingDistance(std:: string &str1, std:: string &str2) { // Calculate hamming distance for two string
+	if ((str1.size() != 64) || (str2.size() != 64)) {
+		return -1;
+	}
+	int distValue = 0;
+	for (int i = 0; i < 64; i++) {
+		if (str1[i] != str2[i]) {
+			distValue++;
+		}
+	}
+	return distValue;
+}
+int calcuateSimilarity_Phash(cv::Mat &pic1, cv::Mat &pic2) {
+  std::string pic1Phash = pHashValue(pic1);
+  std::string pic2Phash = pHashValue(pic2);
+  int distance = hammingDistance(pic1Phash, pic2Phash);
+  return distance;
+}
+
 
 namespace spaint {
 
@@ -481,7 +542,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
 
     // Attempt to relocalise the synthetic images using the relocaliser for the target scene.
     Relocaliser_CPtr relocaliserI = m_context->get_relocaliser(now_bestCandidate->m_sceneI);
-	std::cout << "b5\n";
+
     std::vector<Relocaliser::Result> results = relocaliserI->relocalise(rgb.get(), depth.get(), now_bestCandidate->m_depthIntrinsicsI);
     boost::optional<Relocaliser::Result> result = results.empty() ? boost::none : boost::optional<Relocaliser::Result>(results[0]);
 
@@ -562,7 +623,59 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
     {
       // cjTwi^-1 * cjTwj = wiTcj * cjTwj = wiTwj
       now_bestCandidate->m_relativePose = ORUtils::SE3Pose(result->pose.GetInvM() * now_bestCandidate->m_localPoseJ.GetM());
-      m_context->get_collaborative_pose_optimiser()->add_relative_transform_sample(now_bestCandidate->m_sceneI, now_bestCandidate->m_sceneJ, *now_bestCandidate->m_relativePose, m_mode);
+      std::string sceneJ = now_bestCandidate->m_sceneJ;
+      int sceneJFrameSize = m_trajectories[sceneJ].size();
+      double similarity = 0.0;
+      int count = 0;
+      for (int i = 1; i<=frameCount; i++) {
+        // use rgb render picture to calculate similarity
+        int checkNextFrameIndex = now_bestCandidate->m_frameIndexJ + i*frameInterval;
+        if (checkNextFrameIndex < sceneJFrameSize) {
+          count++;
+          ORUtils::SE3Pose nextFrameLocalPose = m_trajectories[sceneJ][checkNextFrameIndex];
+          ORUtils::SE3Pose nextFramePredPose = ORUtils::SE3Pose(nextFrameLocalPose.GetM() * now_bestCandidate->m_relativePose.GetInvM());
+          m_visualisationGenerator->generate_voxel_visualisation(
+            rgb, slamStateI->get_voxel_scene(), nextFramePredPose, viewI->calib.intrinsics_rgb,
+            renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
+          );
+          cv::Mat3b cvNextFrameTargetRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
+          m_visualisationGenerator->generate_voxel_visualisation(
+            rgb, slamStateJ->get_voxel_scene(), nextFrameLocalPose, viewI->calib.intrinsics_rgb,
+            renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
+          );
+          cv::Mat3b cvNextFrameSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
+          int distance = calcuateSimilarity_Phash(cvNextFrameTargetRGB, cvNextFrameSourceRGB);
+          if (distance!=0) {
+            similarity += (double)1.0/distance;
+          }else {
+            similarity += 5;
+          }
+        }
+        int checkPrevFrameIndex = now_bestCandidate->m_frameIndexJ - i*frameInterval;
+        if (checkPrevFrameIndex >= 0) {
+          count++;
+          ORUtils::SE3Pose prevFrameLocalPose = m_trajectories[sceneJ][checkPrevFrameIndex];
+          ORUtils::SE3Pose prevFramePredPose = ORUtils::SE3Pose(prevFrameLocalPose.GetM() * now_bestCandidate->m_relativePose.GetInvM());
+          m_visualisationGenerator->generate_voxel_visualisation(
+            rgb, slamStateI->get_voxel_scene(), prevFramePredPose, viewI->calib.intrinsics_rgb,
+            renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
+          );
+          cv::Mat3b cvPrevFrameTargetRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
+          m_visualisationGenerator->generate_voxel_visualisation(
+            rgb, slamStateJ->get_voxel_scene(), prevFrameLocalPose, viewI->calib.intrinsics_rgb,
+            renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
+          );
+          cv::Mat3b cvPrevFrameSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
+          int distance = calcuateSimilarity_Phash(cvPrevFrameTargetRGB, cvPrevFrameSourceRGB);
+          if (distance!=0) {
+            similarity += (double)1.0/distance;
+          }else {
+            similarity += 5;
+          }
+        }
+      }
+      
+      m_context->get_collaborative_pose_optimiser()->add_relative_transform_sample(now_bestCandidate->m_sceneI, now_bestCandidate->m_sceneJ, *now_bestCandidate->m_relativePose, similarity/(double)count, m_mode);
       std::cout << "succeeded!" << std::endl;
 
 #if defined(WITH_OPENCV) && DEBUGGING

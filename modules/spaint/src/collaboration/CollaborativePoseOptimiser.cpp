@@ -25,9 +25,6 @@ using namespace MiniSlamGraph;
 using namespace itmx;
 #endif
 
-#include <orx/geometry/GeometryUtil.h>
-using namespace orx;
-
 #include <tvgutil/filesystem/PathFinder.h>
 #include <tvgutil/timing/TimeUtil.h>
 using namespace tvgutil;
@@ -62,14 +59,14 @@ int CollaborativePoseOptimiser::confidence_threshold()
 
 //#################### PUBLIC MEMBER FUNCTIONS ####################
 
-void CollaborativePoseOptimiser::add_relative_transform_sample(const std::string& sceneI, const std::string& sceneJ, const SE3Pose& sample, CollaborationMode mode)
+void CollaborativePoseOptimiser::add_relative_transform_sample(const std::string& sceneI, const std::string& sceneJ, const SE3Pose& sample, const double& weight, CollaborationMode mode)
 {
   boost::lock_guard<boost::mutex> lock(m_mutex);
 
   bool signalOptimiser = true;
 
-  if(!add_relative_transform_sample_sub(sceneI, sceneJ, sample, mode)) signalOptimiser = false;
-  if(!add_relative_transform_sample_sub(sceneJ, sceneI, SE3Pose(sample.GetInvM()), mode)) signalOptimiser = false;
+  if(!add_relative_transform_sample_sub(sceneI, sceneJ, sample, similarity, mode)) signalOptimiser = false;
+  if(!add_relative_transform_sample_sub(sceneJ, sceneI, SE3Pose(sample.GetInvM()), similarity, mode)) signalOptimiser = false;
 
   m_sceneIDs.insert(sceneI);
   m_sceneIDs.insert(sceneJ);
@@ -81,7 +78,8 @@ void CollaborativePoseOptimiser::add_relative_transform_sample(const std::string
   }
 
 #if 1
-  std::map<SceneIDPair,std::vector<SE3PoseCluster> >::const_iterator it = m_relativeTransformSamples.find(std::make_pair(sceneI, sceneJ));
+  // std::map<SceneIDPair,std::vector<SE3PoseCluster> >::const_iterator it = m_relativeTransformSamples.find(std::make_pair(sceneI, sceneJ));
+  std::map<SceneIDPair,std::vector<WeightedPoseCluster> >::const_iterator it = m_relativeTransformSamples.find(std::make_pair(sceneI, sceneJ));
   std::cout << "Cluster sizes: ";
   for(size_t i = 0, size = it->second.size(); i < size; ++i)
   {
@@ -149,7 +147,7 @@ CollaborativePoseOptimiser::try_get_relative_transform_samples(const std::string
 
 //#################### PRIVATE MEMBER FUNCTIONS ####################
 
-bool CollaborativePoseOptimiser::add_relative_transform_sample_sub(const std::string& sceneI, const std::string& sceneJ, const SE3Pose& sample, CollaborationMode mode)
+bool CollaborativePoseOptimiser::add_relative_transform_sample_sub(const std::string& sceneI, const std::string& sceneJ, const SE3Pose& sample, const double& weight, CollaborationMode mode)
 {
 #if DEBUGGING
   std::cout << "Adding sample: " << sceneI << "<-" << sceneJ << '\n'
@@ -161,14 +159,17 @@ bool CollaborativePoseOptimiser::add_relative_transform_sample_sub(const std::st
   // modified is now a confident one, and we're in live mode, decrease the sizes of all other multi-sample
   // clusters (i.e. perform hysteresis), to make it easier for the effects of any incorrect samples that
   // have been added (which is more likely in live mode) to be mitigated over time.
-  std::vector<SE3PoseCluster>& clusters = m_relativeTransformSamples[std::make_pair(sceneI, sceneJ)];
+  
+  // std::vector<SE3PoseCluster>& clusters = m_relativeTransformSamples[std::make_pair(sceneI, sceneJ)];
+  std::vector<weightedPose>& clusters = m_relativeTransformSamples[std::make_pair(sceneI, sceneJ)];
   for(size_t i = 0, clusterCount = clusters.size(); i < clusterCount; ++i)
   {
     for(size_t j = 0, size = clusters[i].size(); j < size; ++j)
     {
       if(GeometryUtil::poses_are_similar(sample, clusters[i][j], 20 * M_PI / 180, 0.1f))
       {
-        clusters[i].push_back(sample);
+        // clusters[i].push_back(sample);
+        clusters[i].push_back(weightedPose(sample, weight));
 
         if(clusters[i].size() >= confidence_threshold())
         {
@@ -191,8 +192,10 @@ bool CollaborativePoseOptimiser::add_relative_transform_sample_sub(const std::st
   }
 
   // If the new sample is not sufficiently similar to the samples in any of the existing clusters, create a new cluster for it.
-  SE3PoseCluster newCluster;
-  newCluster.push_back(sample);
+  // SE3PoseCluster newCluster;
+  // newCluster.push_back(sample);
+  WeightedPoseCluster newCluster;
+  newCluster.push_back(weightedPose(sample, weight));
   clusters.push_back(newCluster);
   return newCluster.size() >= confidence_threshold();
 }
@@ -300,7 +303,7 @@ void CollaborativePoseOptimiser::run_pose_graph_optimisation()
             edgeDesc += ";\n";
             continue;
           }
-
+          
           boost::optional<std::pair<SE3Pose,size_t> > relativeTransform = try_get_relative_transform_sub(sceneIDs[i], sceneIDs[j]);
           if(!relativeTransform || relativeTransform->second < confidence_threshold())
           {
@@ -437,7 +440,7 @@ CollaborativePoseOptimiser::try_get_largest_cluster_sub(const std::string& scene
   if(it == m_relativeTransformSamples.end()) return boost::none;
 
   // Otherwise, find a largest cluster and return it.
-  const std::vector<SE3PoseCluster>& clusters = it->second;
+  /* const std::vector<SE3PoseCluster>& clusters = it->second;
   const SE3PoseCluster *largestCluster = NULL;
   size_t largestClusterSize = 0;
   for(size_t i = 0, clusterCount = clusters.size(); i < clusterCount; ++i)
@@ -449,14 +452,30 @@ CollaborativePoseOptimiser::try_get_largest_cluster_sub(const std::string& scene
       largestClusterSize = clusterSize;
     }
   }
-
-  return largestCluster ? boost::optional<SE3PoseCluster>(*largestCluster) : boost::none;
+  return largestCluster ? boost::optional<SE3PoseCluster>(*largestCluster) : boost::none;*/
+  /* get max weight cluster*/
+  const std::vector<WeightedPoseCluster>& clusters = it->second;
+  const WeightedPoseCluster *largestCluster = NULL;
+  double maxWeight = 0;
+  for (size_t i=0, clusterCount = clusters.size(); i<clusterCount; ++i) {
+    double nowWeight = 0;
+    for (auto &weightP:clusters[i]) {
+      nowWeight += weightP->weight;
+    }
+    if (nowWeight > maxWeight) {
+      largestCluster = &clusters[i];
+      maxWeight = nowWeight;
+    }
+  }
+  return largestCluster?boost::optional<WeightedPoseCluster>(*largestCluster) : boost::none;
 }
 
 boost::optional<std::pair<SE3Pose,size_t> > CollaborativePoseOptimiser::try_get_relative_transform_sub(const std::string& sceneI, const std::string& sceneJ) const
 {
-  boost::optional<SE3PoseCluster> largestCluster = try_get_largest_cluster_sub(sceneI, sceneJ);
-  return largestCluster ? boost::optional<std::pair<SE3Pose,size_t> >(std::make_pair(GeometryUtil::blend_poses(*largestCluster), largestCluster->size())) : boost::none;
+  // boost::optional<SE3PoseCluster> largestCluster = try_get_largest_cluster_sub(sceneI, sceneJ);
+  boost::optional<WeightedPoseCluster> largestCluster = try_get_largest_cluster_sub(sceneI, sceneJ);
+  // return largestCluster ? boost::optional<std::pair<SE3Pose,size_t> >(std::make_pair(GeometryUtil::blend_poses(*largestCluster), largestCluster->size())) : boost::none;
+  return largestCluster ? boost::optional<std::pair<SE3Pose,size_t> >(std::make_pair(GeometryUtil::blend_weighted_pose(*largestCluster), largestCluster->size())) : boost::none;
 }
 
 }
