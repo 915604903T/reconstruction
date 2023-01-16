@@ -138,7 +138,9 @@ public:
    * \return        The largest cluster of samples of the transformation from the coordinate system of
    *                scene j to that of scene i, if any such samples exist, or boost::none otherwise.
    */
-  boost::optional<SE3PoseCluster> try_get_largest_cluster(const std::string& sceneI, const std::string& sceneJ) const;
+  boost::optional<WeightedPoseCluster> try_get_largest_cluster(const std::string& sceneI, const std::string& sceneJ) const;
+
+  boost::optional<WeightedPoseCluster> try_get_largest_size_cluster(const std::string& sceneI, const std::string& sceneJ) const;
 
   /**
    * \brief Attempts to get an estimate of the transformation from the coordinate system of scene j to that of scene i.
@@ -158,7 +160,7 @@ public:
    * \return        The samples of the transformation from the coordinate system of scene j to that of scene i,
    *                if there are any, or boost::none otherwise.
    */
-  boost::optional<std::vector<SE3PoseCluster> > try_get_relative_transform_samples(const std::string& sceneI, const std::string& sceneJ) const;
+  boost::optional<std::vector<WeightedPoseCluster> > try_get_relative_transform_samples(const std::string& sceneI, const std::string& sceneJ) const;
 
   //#################### PRIVATE MEMBER FUNCTIONS ####################
 private:
@@ -192,7 +194,8 @@ private:
    * \return        The largest cluster of samples of the transformation from the coordinate system of
    *                scene j to that of scene i, if any such samples exist, or boost::none otherwise.
    */
-  boost::optional<SE3PoseCluster> try_get_largest_cluster_sub(const std::string& sceneI, const std::string& sceneJ) const;
+  boost::optional<WeightedPoseCluster> try_get_largest_cluster_sub(const std::string& sceneI, const std::string& sceneJ) const;
+  boost::optional<WeightedPoseCluster> try_get_largest_size_cluster_sub(const std::string& sceneI, const std::string& sceneJ) const;
 
   /**
    * \brief Attempts to get an estimate of the transformation from the coordinate system of scene j to that of scene i.

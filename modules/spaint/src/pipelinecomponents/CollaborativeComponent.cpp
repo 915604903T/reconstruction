@@ -76,13 +76,13 @@ std::string pHashValue(cv::Mat &srcImg) { // Calculate picture phash
 
 	if (srcImg.channels() == 3) {
 		cv::cvtColor(srcImg, srcImg, CV_BGR2GRAY);
-		img = Mat_<double>(srcImg);
+		img = cv::Mat_<double>(srcImg);
 	}
 	else {
-		img = Mat_<double>(srcImg);
+		img = cv::Mat_<double>(srcImg);
 	}
 
-	cv::resize(img, img, Size(32, 32));
+	cv::resize(img, img, cv::Size(32, 32));
 	cv::dct(img, dstImg);
 
 	for (int i = 0; i < 8; i++) {
@@ -434,12 +434,14 @@ void CollaborativeComponent::output_results() const
     {
       if(j == i) continue;
 
-      boost::optional<std::vector<CollaborativePoseOptimiser::SE3PoseCluster> > result = poseOptimiser->try_get_relative_transform_samples(sceneIDs[i], sceneIDs[j]);
+      // boost::optional<std::vector<CollaborativePoseOptimiser::SE3PoseCluster> > result = poseOptimiser->try_get_relative_transform_samples(sceneIDs[i], sceneIDs[j]);
+	  boost::optional<std::vector<CollaborativePoseOptimiser::WeightedPoseCluster> > result = poseOptimiser->try_get_relative_transform_samples(sceneIDs[i], sceneIDs[j]);
       if(!result) continue;
 
       std::cout << "\nClusters " << i << " <- " << j << "\n\n";
 
-      const std::vector<CollaborativePoseOptimiser::SE3PoseCluster>& clusters = *result;
+      // const std::vector<CollaborativePoseOptimiser::SE3PoseCluster>& clusters = *result;
+	  const std::vector<CollaborativePoseOptimiser::WeightedPoseCluster>& clusters = *result;
       const size_t clusterCount = clusters.size();
 
       // Find the largest cluster.
@@ -455,12 +457,14 @@ void CollaborativeComponent::output_results() const
         }
       }
 
-      boost::optional<SE3Pose> correctTransform = largestClusterIndex != -1 ? boost::optional<SE3Pose>(GeometryUtil::blend_poses(clusters[largestClusterIndex])) : boost::none;
+      // boost::optional<SE3Pose> correctTransform = largestClusterIndex != -1 ? boost::optional<SE3Pose>(GeometryUtil::blend_poses(clusters[largestClusterIndex])) : boost::none;
+	   boost::optional<SE3Pose> correctTransform = largestClusterIndex != -1 ? boost::optional<SE3Pose>(GeometryUtil::blend_weighted_poses(clusters[largestClusterIndex])) : boost::none;
 
       // Print out the individual clusters.
       for(size_t k = 0; k < clusterCount; ++k)
       {
-        SE3Pose blendedTransform = GeometryUtil::blend_poses(clusters[k]);
+        // SE3Pose blendedTransform = GeometryUtil::blend_poses(clusters[k]);
+		SE3Pose blendedTransform = GeometryUtil::blend_weighted_poses(clusters[k]);
         Vector3f t, r;
         blendedTransform.GetParams(t, r);
 
@@ -639,7 +643,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
         if (checkNextFrameIndex < sceneJFrameSize) {
           count++;
           ORUtils::SE3Pose nextFrameLocalPose = m_trajectories[sceneJ][checkNextFrameIndex];
-          ORUtils::SE3Pose nextFramePredPose = ORUtils::SE3Pose(nextFrameLocalPose.GetM() * now_bestCandidate->m_relativePose.GetInvM());
+          ORUtils::SE3Pose nextFramePredPose = ORUtils::SE3Pose(nextFrameLocalPose.GetM() * now_bestCandidate->m_relativePose->GetInvM());
           m_visualisationGenerator->generate_voxel_visualisation(
             rgb, slamStateI->get_voxel_scene(), nextFramePredPose, viewI->calib.intrinsics_rgb,
             renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
@@ -661,7 +665,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
         if (checkPrevFrameIndex >= 0) {
           count++;
           ORUtils::SE3Pose prevFrameLocalPose = m_trajectories[sceneJ][checkPrevFrameIndex];
-          ORUtils::SE3Pose prevFramePredPose = ORUtils::SE3Pose(prevFrameLocalPose.GetM() * now_bestCandidate->m_relativePose.GetInvM());
+          ORUtils::SE3Pose prevFramePredPose = ORUtils::SE3Pose(prevFrameLocalPose.GetM() * now_bestCandidate->m_relativePose->GetInvM());
           m_visualisationGenerator->generate_voxel_visualisation(
             rgb, slamStateI->get_voxel_scene(), prevFramePredPose, viewI->calib.intrinsics_rgb,
             renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
@@ -725,7 +729,8 @@ void CollaborativeComponent::score_candidates(std::list<CollaborativeRelocalisat
     float newNodeBoost = (globalPoseI && !globalPoseJ) || (globalPoseJ && !globalPoseI) ? 1.0f : 0.0f;
 
     // Penalise candidates that will only add to an existing confident edge.
-    boost::optional<CollaborativePoseOptimiser::SE3PoseCluster> largestCluster = poseOptimiser->try_get_largest_cluster(candidate.m_sceneI, candidate.m_sceneJ);
+    // boost::optional<CollaborativePoseOptimiser::SE3PoseCluster> largestCluster = poseOptimiser->try_get_largest_cluster(candidate.m_sceneI, candidate.m_sceneJ);
+	boost::optional<CollaborativePoseOptimiser::WeightedPoseCluster> largestCluster = poseOptimiser->try_get_largest_cluster(candidate.m_sceneI, candidate.m_sceneJ);
     int largestClusterSize = largestCluster ? static_cast<int>(largestCluster->size()) : 0;
     float confidencePenalty = 1.0f * std::max(largestClusterSize - CollaborativePoseOptimiser::confidence_threshold(), 0);
 

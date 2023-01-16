@@ -24,11 +24,11 @@ ORUtils::SE3Pose GeometryUtil::blend_poses(const std::vector<ORUtils::SE3Pose>& 
   const double weight = 1.0 / count;
   for(int i = 0; i < count; ++i)
   {
-    dqs.push_back(pose_to_dual_quat<double>(poses[i]));
+    dqs.push_back(GeometryUtil::pose_to_dual_quat<double>(poses[i]));
     weights.push_back(weight);
   }
 
-  return dual_quat_to_pose(DualQuatd::linear_blend(&dqs[0], &weights[0], count));
+  return GeometryUtil::dual_quat_to_pose(DualQuatd::linear_blend(&dqs[0], &weights[0], count));
 }
 
 ORUtils::SE3Pose blend_weighted_poses(const std::vector<weightedPose>& weightedPoses)
@@ -40,11 +40,11 @@ ORUtils::SE3Pose blend_weighted_poses(const std::vector<weightedPose>& weightedP
   // Compute a uniformly-weighted linear blend of all of the poses and return it.
   for(auto &weightedP:weightedPoses)
   {
-    dqs.push_back(pose_to_dual_quat<double>(weightedP->pose));
-    weights.push_back(weightedP->weight);
+    dqs.push_back(GeometryUtil::pose_to_dual_quat<double>(weightedP.pose));
+    weights.push_back(weightedP.weight);
   }
 
-  return dual_quat_to_pose(DualQuatd::linear_blend(&dqs[0], &weights[0], count));
+  return GeometryUtil::dual_quat_to_pose(DualQuatd::linear_blend(&dqs[0], &weights[0], count));
 }
 
 Eigen::Matrix4f GeometryUtil::estimate_rigid_transform(const Eigen::Matrix3f& P, const Eigen::Matrix3f& Q)
