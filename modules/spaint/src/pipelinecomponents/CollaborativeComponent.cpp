@@ -357,6 +357,7 @@ void CollaborativeComponent::output_results() const
 
 void CollaborativeComponent::run_relocalisation()
 {
+	int count = 0;
   while(!m_stopRelocalisationThread)
   {
     // Wait for a relocalisation to be scheduled.
@@ -401,9 +402,14 @@ void CollaborativeComponent::run_relocalisation()
     // Make OpenCV copies of the synthetic images we're trying to relocalise (these may be needed later).
     cv::Mat3b cvSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
     cv::Mat1b cvSourceDepth = OpenCVUtil::make_greyscale_image(depth->GetData(MEMORYDEVICE_CPU), depth->noDims.x, depth->noDims.y, OpenCVUtil::ROW_MAJOR, 100.0f);
-
+	std::cout << "this is cvSourceRGB!!!\n";
+	cv::imwrite("pic/rgb/" + std::to_string(count) + "rgb.png", cvSourceRGB);
+	cv::imwrite("pic/depth/" + std::to_string(count) + "depth.png", cvSourceDepth);
+	count++;
   #if DEBUGGING
     // If we're debugging, show the synthetic images of the source scene to the user.
+	std::cout << "this is imshow!!!!!!\n";
+	// cv::imwrite("test.jpg", cvSourceRGB);
     cv::imshow("Source Depth", cvSourceDepth);
     cv::imshow("Source RGB", cvSourceRGB);
   #endif
