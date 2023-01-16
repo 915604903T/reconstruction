@@ -31,7 +31,7 @@ ORUtils::SE3Pose GeometryUtil::blend_poses(const std::vector<ORUtils::SE3Pose>& 
   return GeometryUtil::dual_quat_to_pose(DualQuatd::linear_blend(&dqs[0], &weights[0], count));
 }
 
-ORUtils::SE3Pose blend_weighted_poses(const std::vector<weightedPose>& weightedPoses)
+ORUtils::SE3Pose GeometryUtil::blend_weighted_poses(const std::vector<weightedPose>& weightedPoses)
 {
   std::vector<DualQuatd> dqs;
   std::vector<double> weights;
