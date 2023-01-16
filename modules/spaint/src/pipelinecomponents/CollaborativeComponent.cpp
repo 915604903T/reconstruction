@@ -674,7 +674,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
           }
         }
       }
-      
+      std::cout << "similarity: " << similarity <<" average: " << similarity/(double)count << "\n";
       m_context->get_collaborative_pose_optimiser()->add_relative_transform_sample(now_bestCandidate->m_sceneI, now_bestCandidate->m_sceneJ, *now_bestCandidate->m_relativePose, similarity/(double)count, m_mode);
       std::cout << "succeeded!" << std::endl;
 
