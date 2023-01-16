@@ -13,11 +13,17 @@ using namespace tvgutil;
 #include <boost/lexical_cast.hpp>
 #include <boost/timer/timer.hpp>
 
+#include <boost/atomic.hpp>
+#include <boost/thread.hpp>
+#include <unordered_set>
+
 #include <Eigen/Dense>
 
 #ifdef WITH_OPENMP
 #include <omp.h>
 #endif
+#include <unistd.h>
+#include <sys/syscall.h>
 
 #include <orx/base/MemoryBlockFactory.h>
 #include <orx/geometry/GeometryUtil.h>
@@ -126,14 +132,25 @@ void PreemptiveRansac::update_candidate_poses()
   // Note: This is a default implementation of the abstract function - it is intended to be called / overridden by derived classes.
   const int nbPoseCandidates = static_cast<int>(m_poseCandidates->dataSize);
 
+  std::unordered_set<int> threadCnt{};
+  boost::mutex m;
+  int ttid = syscall(SYS_gettid);
 #ifdef WITH_OPENMP
-  #pragma omp parallel for schedule(dynamic)
+  #pragma omp parallel for schedule(dynamic) num_threads(24)
 #endif
   for(int i = 0; i < nbPoseCandidates; ++i)
   {
+	  int tid = syscall(SYS_gettid);
+	  // m.lock();
+	  // threadCnt.insert(tid);
+	  // m.unlock();
+	  // std::cout << tid << ": in update_candidate_poses openmp\n";
     update_candidate_pose(i);
   }
+  // std::cout << ttid <<  ": this is cnt size in update_candidate_poses: " <<threadCnt.size() <<"\n";
+  // sleep(35);
 }
+
 
 //#################### PUBLIC MEMBER FUNCTIONS ####################
 
@@ -322,10 +339,12 @@ void PreemptiveRansac::compute_candidate_poses_kabsch()
 #if 0
   std::cout << "Generated " << nbPoseCandidates << " candidates." << std::endl;
 #endif
-
+	boost::mutex m;
+	std::unordered_set<int> threadCnt{};
+	int ttid = syscall(SYS_gettid);
   // For each candidate:
 #ifdef WITH_OPENMP
-  #pragma omp parallel for
+  #pragma omp parallel for num_threads(16)
 #endif
   for(int candidateIdx = 0; candidateIdx < nbPoseCandidates; ++candidateIdx)
   {
@@ -336,13 +355,19 @@ void PreemptiveRansac::compute_candidate_poses_kabsch()
     Eigen::Matrix3f worldPoints;
     for(int i = 0; i < PoseCandidate::KABSCH_CORRESPONDENCES_NEEDED; ++i)
     {
+//		int tid = syscall(SYS_gettid);
+// 		m.lock();
+// 		threadCnt.insert(tid);
+// 		m.unlock();
+		//std::cout << tid << ": in compute_candidate_poses_kabsch openmp\n";
       cameraPoints.col(i) = Eigen::Map<const Eigen::Vector3f>(candidate.pointsCamera[i].v);
       worldPoints.col(i) = Eigen::Map<const Eigen::Vector3f>(candidate.pointsWorld[i].v);
     }
-
     // Run the Kabsch algorithm and store the resulting camera -> world transformation in the candidate's cameraPose matrix.
     Eigen::Map<Eigen::Matrix4f>(candidate.cameraPose.m) = GeometryUtil::estimate_rigid_transform(cameraPoints, worldPoints);
   }
+  // std::cout << ttid << ": this is cnt size in compute_candidate_poses_kabsch: " << threadCnt.size() <<"\n";
+  //sleep(35);
 }
 
 void PreemptiveRansac::reset_inliers(bool resetMask)

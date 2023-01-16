@@ -8,6 +8,9 @@ using namespace ITMLib;
 using namespace ORUtils;
 using namespace itmx;
 
+#include <unistd.h>
+#include <sys/syscall.h>
+
 #include <algorithm>
 
 #include <boost/bind.hpp>
@@ -21,7 +24,105 @@ using boost::bind;
 #include <orx/relocalisation/Relocaliser.h>
 using namespace orx;
 
+#include <string>
+#include <cstdio>
+#include <cstring>
+
 #define DEBUGGING 0
+
+int parseLine(char *line) {
+    // This assumes that a digit will be found and the line ends in " Kb".
+    int i = strlen(line);
+    const char *p = line;
+    while (*p < '0' || *p > '9') p++;
+    line[i - 3] = '\0';
+    i = atoi(p);
+    return i;
+}
+
+typedef struct {
+    uint32_t virtualMem;
+    uint32_t physicalMem;
+} processMem_t;
+
+processMem_t GetProcessMemory() {
+    FILE *file = fopen("/proc/self/status", "r");
+    char line[128];
+    processMem_t processMem;
+
+    while (fgets(line, 128, file) != NULL) {
+        if (strncmp(line, "VmSize:", 7) == 0) {
+            processMem.virtualMem = parseLine(line);
+            break;
+        }
+
+        if (strncmp(line, "VmRSS:", 6) == 0) {
+            processMem.physicalMem = parseLine(line);
+            break;
+        }
+    }
+    fclose(file);
+    return processMem;
+}
+
+/** Calculate similarity between two pic based on Phash*/
+std::string pHashValue(cv::Mat &srcImg) { // Calculate picture phash
+	cv::Mat img, dstImg;
+	std::string rst(64, '\0');
+
+	double dIndex[64];
+	double mean = 0.0;
+	int k = 0;
+
+	if (srcImg.channels() == 3) {
+		cv::cvtColor(srcImg, srcImg, CV_BGR2GRAY);
+		img = Mat_<double>(srcImg);
+	}
+	else {
+		img = Mat_<double>(srcImg);
+	}
+
+	cv::resize(img, img, Size(32, 32));
+	cv::dct(img, dstImg);
+
+	for (int i = 0; i < 8; i++) {
+		for (int j = 0; j < 8; j++) {
+			dIndex[k] = dstImg.at<double>(i, j);
+			mean += dstImg.at<double>(i, j) / 64;
+			++k;
+		}
+	}
+  //Calculate hash
+	for (int i = 0; i < 64; ++i) {
+		if (dIndex[i] >= mean) {
+			rst[i] = '1';
+		}
+		else {
+			rst[i] = '0';
+		}
+	}
+
+	return rst;
+}
+int hammingDistance(std:: string &str1, std:: string &str2) { // Calculate hamming distance for two string
+	if ((str1.size() != 64) || (str2.size() != 64)) {
+		return -1;
+	}
+	int distValue = 0;
+	for (int i = 0; i < 64; i++) {
+		if (str1[i] != str2[i]) {
+			distValue++;
+		}
+	}
+	return distValue;
+}
+int calcuateSimilarity_Phash(cv::Mat &pic1, cv::Mat &pic2) {
+  std::string pic1Phash = pHashValue(pic1);
+  std::string pic2Phash = pHashValue(pic2);
+  int distance = hammingDistance(pic1Phash, pic2Phash);
+  return distance;
+}
+
 
 namespace spaint {
 
@@ -40,9 +141,21 @@ CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& c
   const std::string settingsNamespace = "CollaborativeComponent.";
   m_considerPoorRelocalisations = settings->get_first_value<bool>(settingsNamespace + "considerPoorRelocalisations", mode == CM_LIVE);
   m_stopAtFirstConsistentReconstruction = settings->get_first_value<bool>(settingsNamespace + "stopAtFirstConsistentReconstruction", false);
-  m_timeCollaboration = settings->get_first_value<bool>(settingsNamespace + "timeCollaboration", false);
+  // m_timeCollaboration = settings->get_first_value<bool>(settingsNamespace + "timeCollaboration", false);
+  m_timeCollaboration = true;
 
-  m_relocalisationThread = boost::thread(boost::bind(&CollaborativeComponent::run_relocalisation, this));
+  int cpuCnt = sysconf(_SC_NPROCESSORS_CONF);
+  int average = cpuCnt/relocalisationThreadsCount;
+  for (int i=0; i<relocalisationThreadsCount; i++) {
+    cpu_set_t mask;
+    CPU_ZERO(&mask);
+	std::cout << "for " << i << "relocalisationThread: " << i*average << "~" << (i+1)*average-1 << "\n"; 
+    for (int j=i*average; j<cpuCnt&&j<(i+1)*average; j++) {
+      CPU_SET(j, &mask);
+    }
+    m_relocalisationThreads[i] = boost::thread(boost::bind(&CollaborativeComponent::run_relocalisation, this, mask));
+  }
+  // m_relocalisationThread = boost::thread(boost::bind(&CollaborativeComponent::run_relocalisation, this));
 
   const std::string globalPosesSpecifier = settings->get_first_value<std::string>("globalPosesSpecifier", "");
   m_context->get_collaborative_pose_optimiser()->start(globalPosesSpecifier);
@@ -53,8 +166,12 @@ CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& c
 CollaborativeComponent::~CollaborativeComponent()
 {
   m_stopRelocalisationThread = true;
-  m_readyToRelocalise.notify_one();
-  m_relocalisationThread.join();
+  // m_readyToRelocalise.notify_one();
+  m_readyToRelocalise.notify_all();
+  for (int i=0; i<relocalisationThreadsCount; i++) {
+    m_relocalisationThreads[i].join();
+  }
+  // m_relocalisationThread.join();
 
   // If we're computing the time spent collaborating:
   if(m_collaborationTimer)
@@ -355,15 +472,25 @@ void CollaborativeComponent::output_results() const
   }
 }
 
-void CollaborativeComponent::run_relocalisation()
+// void CollaborativeComponent::run_relocalisation()
+void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
 {
-	int count = 0;
+  auto tid = syscall(SYS_gettid);
+  std::cout << tid << "\n";
+
+  if (sched_setaffinity(tid, sizeof(mask), &mask) < 0) {
+    std::cout << "set thread affinity failed\n";
+  }else {
+    std::cout << "set " << tid << "to cpu set \n";
+  }
+  
   while(!m_stopRelocalisationThread)
   {
     // Wait for a relocalisation to be scheduled.
     {
       boost::unique_lock<boost::mutex> lock(m_mutex);
-      while(!m_bestCandidate)
+      // while(!m_bestCandidate)
+      while (m_bestCandidates.empty())
       {
         m_readyToRelocalise.wait(lock);
 
@@ -371,27 +498,31 @@ void CollaborativeComponent::run_relocalisation()
         if(m_stopRelocalisationThread) return;
       }
     }
-	
-    std::cout << "Attempting to relocalise frame " << m_bestCandidate->m_frameIndexJ << " of " << m_bestCandidate->m_sceneJ << " against " << m_bestCandidate->m_sceneI << "...";
+    m_mutex.lock();
+    auto now_bestCandidate = m_bestCandidates.front();
+    m_bestCandidates.pop_front();
+    m_mutex.unlock();
+    std::cout << tid <<" : Attempting to relocalise frame " << now_bestCandidate->m_frameIndexJ << " of " << now_bestCandidate->m_sceneJ << " against " << now_bestCandidate->m_sceneI << "...";
+    // std::cout << "Attempting to relocalise frame " << m_bestCandidate->m_frameIndexJ << " of " << m_bestCandidate->m_sceneJ << " against " << m_bestCandidate->m_sceneI << "...";
 
     // Render synthetic images of the source scene from the relevant pose and copy them across to the GPU for use by the relocaliser.
     // The synthetic images have the size of the images in the target scene and are generated using the target scene's intrinsics.
-    const SLAMState_CPtr slamStateI = m_context->get_slam_state(m_bestCandidate->m_sceneI);
-    const SLAMState_CPtr slamStateJ = m_context->get_slam_state(m_bestCandidate->m_sceneJ);
+    const SLAMState_CPtr slamStateI = m_context->get_slam_state(now_bestCandidate->m_sceneI);
+    const SLAMState_CPtr slamStateJ = m_context->get_slam_state(now_bestCandidate->m_sceneJ);
     const View_CPtr viewI = slamStateI->get_view();
 
     ORFloatImage_Ptr depth(new ORFloatImage(slamStateI->get_depth_image_size(), true, true));
     ORUChar4Image_Ptr rgb(new ORUChar4Image(slamStateI->get_rgb_image_size(), true, true));
 
-    VoxelRenderState_Ptr& renderStateD = m_depthRenderStates[m_bestCandidate->m_sceneI];
+    VoxelRenderState_Ptr& renderStateD = m_depthRenderStates[now_bestCandidate->m_sceneI];
     m_visualisationGenerator->generate_depth_from_voxels(
-      depth, slamStateJ->get_voxel_scene(), m_bestCandidate->m_localPoseJ, viewI->calib.intrinsics_d,
+      depth, slamStateJ->get_voxel_scene(), now_bestCandidate->m_localPoseJ, viewI->calib.intrinsics_d,
       renderStateD, DepthVisualiser::DT_ORTHOGRAPHIC
     );
 
-    VoxelRenderState_Ptr& renderStateRGB = m_rgbRenderStates[m_bestCandidate->m_sceneI];
+    VoxelRenderState_Ptr& renderStateRGB = m_rgbRenderStates[now_bestCandidate->m_sceneI];
     m_visualisationGenerator->generate_voxel_visualisation(
-      rgb, slamStateJ->get_voxel_scene(), m_bestCandidate->m_localPoseJ, viewI->calib.intrinsics_rgb,
+      rgb, slamStateJ->get_voxel_scene(), now_bestCandidate->m_localPoseJ, viewI->calib.intrinsics_rgb,
       renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
     );
 
@@ -402,10 +533,10 @@ void CollaborativeComponent::run_relocalisation()
     // Make OpenCV copies of the synthetic images we're trying to relocalise (these may be needed later).
     cv::Mat3b cvSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
     cv::Mat1b cvSourceDepth = OpenCVUtil::make_greyscale_image(depth->GetData(MEMORYDEVICE_CPU), depth->noDims.x, depth->noDims.y, OpenCVUtil::ROW_MAJOR, 100.0f);
-	std::cout << "this is cvSourceRGB!!!\n";
-	cv::imwrite("pic/rgb/" + std::to_string(count) + "rgb.png", cvSourceRGB);
-	cv::imwrite("pic/depth/" + std::to_string(count) + "depth.png", cvSourceDepth);
-	count++;
+	// std::cout << "this is cvSourceRGB!!!\n";
+	// cv::imwrite("pic/rgb/" + std::to_string(count) + "rgb.png", cvSourceRGB);
+	// cv::imwrite("pic/depth/" + std::to_string(count) + "depth.png", cvSourceDepth);
+	// count++;
   #if DEBUGGING
     // If we're debugging, show the synthetic images of the source scene to the user.
 	std::cout << "this is imshow!!!!!!\n";
@@ -416,12 +547,13 @@ void CollaborativeComponent::run_relocalisation()
 #endif
 
     // Attempt to relocalise the synthetic images using the relocaliser for the target scene.
-    Relocaliser_CPtr relocaliserI = m_context->get_relocaliser(m_bestCandidate->m_sceneI);
-    std::vector<Relocaliser::Result> results = relocaliserI->relocalise(rgb.get(), depth.get(), m_bestCandidate->m_depthIntrinsicsI);
+    Relocaliser_CPtr relocaliserI = m_context->get_relocaliser(now_bestCandidate->m_sceneI);
+
+    std::vector<Relocaliser::Result> results = relocaliserI->relocalise(rgb.get(), depth.get(), now_bestCandidate->m_depthIntrinsicsI);
     boost::optional<Relocaliser::Result> result = results.empty() ? boost::none : boost::optional<Relocaliser::Result>(results[0]);
 
     // If the relocaliser returned a result, store the initial relocalisation quality for later examination.
-    if(result) m_bestCandidate->m_initialRelocalisationQuality = result->quality;
+    if(result) now_bestCandidate->m_initialRelocalisationQuality = result->quality;
 
     // If relocalisation succeeded, verify the result by thresholding the difference between the
     // source depth image and a rendered depth image of the target scene at the relevant pose.
@@ -471,19 +603,20 @@ void CollaborativeComponent::run_relocalisation()
     #endif
 
       // Determine the average depth difference for valid pixels in the source and target depth images.
-      m_bestCandidate->m_meanDepthDiff = cv::mean(cvMaskedDepthDiff);
+      now_bestCandidate->m_meanDepthDiff = cv::mean(cvMaskedDepthDiff);
     #if DEBUGGING
-      std::cout << "\nMean Depth Difference: " << m_bestCandidate->m_meanDepthDiff << std::endl;
+      std::cout << "\nMean Depth Difference: " << now_bestCandidate->m_meanDepthDiff << std::endl;
     #endif
 
       // Compute the fraction of the target depth image that is valid.
-      m_bestCandidate->m_targetValidFraction = static_cast<float>(cv::countNonZero(cvTargetMask == 255)) / (cvTargetMask.size().width * cvTargetMask.size().height);
+      now_bestCandidate->m_targetValidFraction = static_cast<float>(cv::countNonZero(cvTargetMask == 255)) / (cvTargetMask.size().width * cvTargetMask.size().height);
     #if DEBUGGING
       std::cout << "Valid Target Pixels: " << cv::countNonZero(cvTargetMask == 255) << std::endl;
     #endif
 
       // Decide whether or not to verify the relocalisation, based on the average depth difference and the fraction of the target depth image that is valid.
-      verified = is_verified(*m_bestCandidate);
+      // verified = is_verified(*m_bestCandidate);
+      verified = is_verified(*now_bestCandidate);
 #else
       // If we didn't build with OpenCV, we can't do any verification, so just mark the relocalisation as verified and hope for the best.
       verified = true;
@@ -495,8 +628,60 @@ void CollaborativeComponent::run_relocalisation()
     if(verified)
     {
       // cjTwi^-1 * cjTwj = wiTcj * cjTwj = wiTwj
-      m_bestCandidate->m_relativePose = ORUtils::SE3Pose(result->pose.GetInvM() * m_bestCandidate->m_localPoseJ.GetM());
-      m_context->get_collaborative_pose_optimiser()->add_relative_transform_sample(m_bestCandidate->m_sceneI, m_bestCandidate->m_sceneJ, *m_bestCandidate->m_relativePose, m_mode);
+      now_bestCandidate->m_relativePose = ORUtils::SE3Pose(result->pose.GetInvM() * now_bestCandidate->m_localPoseJ.GetM());
+      std::string sceneJ = now_bestCandidate->m_sceneJ;
+      int sceneJFrameSize = m_trajectories[sceneJ].size();
+      double similarity = 0.0;
+      int count = 0;
+      for (int i = 1; i<=frameCount; i++) {
+        // use rgb render picture to calculate similarity
+        int checkNextFrameIndex = now_bestCandidate->m_frameIndexJ + i*frameInterval;
+        if (checkNextFrameIndex < sceneJFrameSize) {
+          count++;
+          ORUtils::SE3Pose nextFrameLocalPose = m_trajectories[sceneJ][checkNextFrameIndex];
+          ORUtils::SE3Pose nextFramePredPose = ORUtils::SE3Pose(nextFrameLocalPose.GetM() * now_bestCandidate->m_relativePose.GetInvM());
+          m_visualisationGenerator->generate_voxel_visualisation(
+            rgb, slamStateI->get_voxel_scene(), nextFramePredPose, viewI->calib.intrinsics_rgb,
+            renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
+          );
+          cv::Mat3b cvNextFrameTargetRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
+          m_visualisationGenerator->generate_voxel_visualisation(
+            rgb, slamStateJ->get_voxel_scene(), nextFrameLocalPose, viewI->calib.intrinsics_rgb,
+            renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
+          );
+          cv::Mat3b cvNextFrameSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
+          int distance = calcuateSimilarity_Phash(cvNextFrameTargetRGB, cvNextFrameSourceRGB);
+          if (distance!=0) {
+            similarity += (double)1.0/distance;
+          }else {
+            similarity += 5;
+          }
+        }
+        int checkPrevFrameIndex = now_bestCandidate->m_frameIndexJ - i*frameInterval;
+        if (checkPrevFrameIndex >= 0) {
+          count++;
+          ORUtils::SE3Pose prevFrameLocalPose = m_trajectories[sceneJ][checkPrevFrameIndex];
+          ORUtils::SE3Pose prevFramePredPose = ORUtils::SE3Pose(prevFrameLocalPose.GetM() * now_bestCandidate->m_relativePose.GetInvM());
+          m_visualisationGenerator->generate_voxel_visualisation(
+            rgb, slamStateI->get_voxel_scene(), prevFramePredPose, viewI->calib.intrinsics_rgb,
+            renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
+          );
+          cv::Mat3b cvPrevFrameTargetRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
+          m_visualisationGenerator->generate_voxel_visualisation(
+            rgb, slamStateJ->get_voxel_scene(), prevFrameLocalPose, viewI->calib.intrinsics_rgb,
+            renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
+          );
+          cv::Mat3b cvPrevFrameSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
+          int distance = calcuateSimilarity_Phash(cvPrevFrameTargetRGB, cvPrevFrameSourceRGB);
+          if (distance!=0) {
+            similarity += (double)1.0/distance;
+          }else {
+            similarity += 5;
+          }
+        }
+      }
+      std::cout << "similarity: " << similarity <<" average: " << similarity/(double)count << "\n";
+      m_context->get_collaborative_pose_optimiser()->add_relative_transform_sample(now_bestCandidate->m_sceneI, now_bestCandidate->m_sceneJ, *now_bestCandidate->m_relativePose, similarity/(double)count, m_mode);
       std::cout << "succeeded!" << std::endl;
 
 #if defined(WITH_OPENCV) && DEBUGGING
@@ -518,9 +703,9 @@ void CollaborativeComponent::run_relocalisation()
 #if DEBUGGING
       m_results.push_back(*m_bestCandidate);
 #endif
-      m_bestCandidate.reset();
+	  now_bestCandidate.reset();
+      // m_bestCandidate.reset();
     }
-
     // In live mode, allow a bit of extra time for training before running the next relocalisation.
     // FIXME: This is a bit hacky - we might want to improve this in the future.
     if(m_mode == CM_LIVE) boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
@@ -575,8 +760,11 @@ void CollaborativeComponent::try_schedule_relocalisation()
     boost::unique_lock<boost::mutex> lock(m_mutex);
 
     // If an existing relocalisation attempt is in progress, early out.
-    if(m_bestCandidate) return;
-
+    // if(m_bestCandidate) return;
+    if (m_bestCandidates.size()>=bestCandidateMaxCount) {
+      m_readyToRelocalise.notify_one();
+      return;
+    }
 #if 1
     // Randomly generate a list of candidate relocalisations.
     const size_t desiredCandidateCount = 10;
@@ -605,13 +793,17 @@ void CollaborativeComponent::try_schedule_relocalisation()
 #endif
 
     // Schedule the best candidate for relocalisation.
-    m_bestCandidate.reset(new CollaborativeRelocalisation(candidates.back()));
-
+    // m_bestCandidate.reset(new CollaborativeRelocalisation(candidates.back()));
+    // auto now_bestCandidate = new CollaborativeRelocalisation(candidates.back());
+	  boost::shared_ptr<CollaborativeRelocalisation> now_bestCandidate(new CollaborativeRelocalisation(candidates.back()));
+    m_bestCandidates.push_back(now_bestCandidate);
     // If we're in batch mode, record the index of the frame we're trying in case we want to avoid frames with similar poses later.
     if(m_mode == CM_BATCH)
     {
-      std::set<int>& triedFrameIndices = m_triedFrameIndices[std::make_pair(m_bestCandidate->m_sceneI, m_bestCandidate->m_sceneJ)];
-      triedFrameIndices.insert(m_bestCandidate->m_frameIndexJ);
+      // std::set<int>& triedFrameIndices = m_triedFrameIndices[std::make_pair(m_bestCandidate->m_sceneI, m_bestCandidate->m_sceneJ)];
+      // triedFrameIndices.insert(m_bestCandidate->m_frameIndexJ);
+      std::set<int>& triedFrameIndices = m_triedFrameIndices[std::make_pair(now_bestCandidate->m_sceneI, now_bestCandidate->m_sceneJ)];
+      triedFrameIndices.insert(now_bestCandidate->m_frameIndexJ);
     }
   }
 

@@ -12,12 +12,16 @@
 #include <boost/optional.hpp>
 #include <boost/thread.hpp>
 
+#include <orx/geometry/GeometryUtil.h>
+using namespace orx;
+
 #include <ORUtils/SE3Pose.h>
 
 #include "CollaborationMode.h"
 
-namespace spaint {
 
+namespace spaint {
+  
 /**
  * \brief An instance of this class can be used to estimate consistent global poses for the scenes in a collaborative reconstruction.
  */
@@ -27,6 +31,7 @@ class CollaborativePoseOptimiser
 public:
   typedef std::pair<std::string,std::string> SceneIDPair;
   typedef std::vector<ORUtils::SE3Pose> SE3PoseCluster;
+  typedef std::vector<weightedPose> WeightedPoseCluster;
 
   //#################### PRIVATE VARIABLES ####################
 private:
@@ -49,7 +54,8 @@ private:
    * Accumulated samples of the relative transformations between the different scenes. Each sample for (scene i, scene j)
    * expresses an estimate of the transformation from the coordinate system of scene j to that of scene i.
    */
-  std::map<SceneIDPair,std::vector<SE3PoseCluster> > m_relativeTransformSamples;
+  // std::map<SceneIDPair,std::vector<SE3PoseCluster> > m_relativeTransformSamples;
+  std::map<SceneIDPair,std::vector<WeightedPoseCluster> > m_relativeTransformSamples;
 
   /** A condition variable used to wait until new samples have been added. */
   mutable boost::condition_variable m_relativeTransformSamplesAdded;
@@ -99,9 +105,10 @@ public:
    * \param sceneI  The ID of scene i.
    * \param sceneJ  The ID of scene j.
    * \param sample  A sample of the transformation from the coordinate system of scene j to that of scene i.
+   * \param weight  The weight of the sample.
    * \param mode    The mode in which the collaborative reconstruction is running.
    */
-  void add_relative_transform_sample(const std::string& sceneI, const std::string& sceneJ, const ORUtils::SE3Pose& sample, CollaborationMode mode);
+  void add_relative_transform_sample(const std::string& sceneI, const std::string& sceneJ, const ORUtils::SE3Pose& sample, const double& weight, CollaborationMode mode);
 
   /**
    * \brief Starts the pose graph optimiser.
@@ -161,10 +168,11 @@ private:
    * \param sceneI  The ID of scene i.
    * \param sceneJ  The ID of scene j.
    * \param sample  A sample of the transformation from the coordinate system of scene j to that of scene i.
+   * \param weight  Weight for the sample.
    * \param mode    The mode in which the collaborative reconstruction is running.
    * \return        true, if the cluster to which the sample was added is now a confident one, or false otherwise.
    */
-  bool add_relative_transform_sample_sub(const std::string& sceneI, const std::string& sceneJ, const ORUtils::SE3Pose& sample, CollaborationMode mode);
+  bool add_relative_transform_sample_sub(const std::string& sceneI, const std::string& sceneJ, const ORUtils::SE3Pose& sample, const double& weight, CollaborationMode mode);
 
   /**
    * \brief Optimises the relative transformations between the different scenes.
