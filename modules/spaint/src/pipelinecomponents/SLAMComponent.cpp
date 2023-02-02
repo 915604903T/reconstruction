@@ -388,23 +388,26 @@ bool SLAMComponent::process_frame_pose()
   /*
   const ORShortImage_Ptr& inputRawDepthImage = slamState->get_input_raw_depth_image();
   const ORUChar4Image_Ptr& inputRGBImage = slamState->get_input_rgb_image();
+  */
   const SurfelRenderState_Ptr& liveSurfelRenderState = slamState->get_live_surfel_render_state();
   const VoxelRenderState_Ptr& liveVoxelRenderState = slamState->get_live_voxel_render_state();
   const SpaintSurfelScene_Ptr& surfelScene = slamState->get_surfel_scene();
-  */
 
   const TrackingState_Ptr& trackingState = slamState->get_tracking_state();
   const View_Ptr& view = slamState->get_view();
   const SpaintVoxelScene_Ptr& voxelScene = slamState->get_voxel_scene();
 
   // Get the next frame.
+  /*
   ITMView *newView = view.get();
   m_imageSourceEngine->getImages(inputRGBImage.get(), inputRawDepthImage.get());
   const bool useBilateralFilter = m_trackingMode == TRACK_SURFELS;
   m_viewBuilder->UpdateView(&newView, inputRGBImage.get(), inputRawDepthImage.get(), useBilateralFilter);
   slamState->set_view(newView);
+  */
 
   // If there's an active input mask of the right size, apply it to the depth image.
+  /*
   ORFloatImage_Ptr maskedDepthImage;
   ORUCharImage_CPtr inputMask = m_context->get_slam_state(m_sceneID)->get_input_mask();
   if(inputMask && inputMask->noDims == view->depth->noDims)
@@ -414,12 +417,14 @@ bool SLAMComponent::process_frame_pose()
     maskedDepthImage->UpdateDeviceFromHost();
     view->depth->Swap(*maskedDepthImage);
   }
+  */
 
   // Make a note of the current pose in case tracking fails.
   SE3Pose oldPose(*trackingState->pose_d);
 
   // If we're mirroring the pose of another scene, copy the pose from that scene's tracking state.
   // If not, use our own tracker to estimate the pose.
+
   if(m_mirrorSceneID != "")
   {
     *trackingState->pose_d = m_context->get_slam_state(m_mirrorSceneID)->get_pose();
@@ -434,7 +439,7 @@ bool SLAMComponent::process_frame_pose()
   }
 
   // If there was an active input mask, restore the original depth image after tracking.
-  if(maskedDepthImage) view->depth->Swap(*maskedDepthImage);
+  // if(maskedDepthImage) view->depth->Swap(*maskedDepthImage);
 
   // Determine the tracking quality, taking into account the failure mode being used.
 
@@ -468,6 +473,7 @@ bool SLAMComponent::process_frame_pose()
   // Decide whether or not fusion should be run.
   bool runFusion = m_fusionEnabled;
   std::cout << "this is runFuision: " << runFusion << "\n";
+  std::cout << "this is trackingState->trackerResult: " << trackingState->trackerResult << "\n";
   if(trackingState->trackerResult == ITMTrackingState::TRACKING_FAILED ||
      (trackingState->trackerResult == ITMTrackingState::TRACKING_POOR && m_fusedFramesCount >= m_initialFramesToFuse) ||
      (m_fallibleTracker && m_fallibleTracker->lost_tracking()))
@@ -490,21 +496,6 @@ bool SLAMComponent::process_frame_pose()
 
     // If a mapping client is active:
     const MappingClient_Ptr& mappingClient = m_context->get_mapping_client(m_sceneID);
-    if(mappingClient)
-    {
-      // Send the current frame to the remote mapping server.
-      MappingClient::RGBDFrameMessageQueue::PushHandler_Ptr pushHandler = mappingClient->begin_push_frame_message();
-      boost::optional<RGBDFrameMessage_Ptr&> elt = pushHandler->get();
-      if(elt)
-      {
-        RGBDFrameMessage& msg = **elt;
-        msg.set_frame_index(static_cast<int>(m_fusedFramesCount));
-        msg.set_pose(*trackingState->pose_d);
-        msg.set_rgb_image(inputRGBImage);
-        msg.set_depth_image(inputRawDepthImage);
-      }
-    }
-
     ++m_fusedFramesCount;
   }
   else if(trackingState->trackerResult != ITMTrackingState::TRACKING_FAILED)
@@ -517,6 +508,8 @@ bool SLAMComponent::process_frame_pose()
     // If the tracking has completely failed, restore the pose from the previous frame.
     *trackingState->pose_d = oldPose;
   }
+  auto matrix = trackingState->pose_d->GetM();
+  std::cout << "matrix: " << matrix << "\n";
 
   // Render from the live camera position to prepare for tracking in the next frame.
   prepare_for_tracking(m_trackingMode);

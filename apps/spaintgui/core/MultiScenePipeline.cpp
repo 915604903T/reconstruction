@@ -79,7 +79,8 @@ std::set<std::string> MultiScenePipeline::run_main_section()
   std::set<std::string> result;
   for(std::map<std::string,SLAMComponent_Ptr>::const_iterator it = m_slamComponents.begin(), iend = m_slamComponents.end(); it != iend; ++it)
   {
-    if(it->second->process_frame()) result.insert(it->first);
+    // if(it->second->process_frame()) result.insert(it->first);
+	if(it->second->process_frame_pose()) result.insert(it->first);
   }
   return result;
 }
