@@ -23,7 +23,6 @@ SpaintSequence::SpaintSequence(const bf::path& dir, size_t initialFrameNumber, d
   // Try to figure out the format of the sequence stored in the directory (we only check the depth images, since the colour ones might be missing).
   const bool sevenScenesNaming = bf::is_regular_file(dir / "frame-000000.depth.png");
   const bool spaintNaming = bf::is_regular_file(dir / "depthm000000.pgm");
-
   // Determine the depth/RGB/pose masks.
   if(sevenScenesNaming && spaintNaming)
   {

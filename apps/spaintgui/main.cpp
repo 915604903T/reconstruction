@@ -498,12 +498,15 @@ std::vector<CompositeImageSourceEngine_Ptr> make_image_source_engines(const Comm
 	boost::filesystem::path current_path = boost::filesystem::current_path();
 
     CompositeImageSourceEngine_Ptr imageSourceEngine1(new CompositeImageSourceEngine);
-    const std::string calibrationFilename1 = ( current_path / args.scene1 / "calib.txt").string();
+	boost::filesystem::path calibrationPath = args.sequences[0]->default_calib_path();
+	const std::string calibrationFilename1 = calibrationPath.string();
+	std::cout << "this is calibrationFilename1: " << calibrationFilename1 << "\n";
     imageSourceEngine1->addSubengine(new IdleImageSourceEngine(calibrationFilename1.c_str()));
     ImageSourceEngines.push_back(imageSourceEngine1);
 
     CompositeImageSourceEngine_Ptr imageSourceEngine2(new CompositeImageSourceEngine);
-    const std::string calibrationFilename2 = (current_path / args.scene2 / "calib.txt").string();
+	calibrationPath = args.sequences[1]->default_calib_path();
+	const std::string calibrationFilename2 = calibrationPath.string();
     imageSourceEngine2->addSubengine(new IdleImageSourceEngine(calibrationFilename2.c_str()));
     ImageSourceEngines.push_back(imageSourceEngine2);
   }
