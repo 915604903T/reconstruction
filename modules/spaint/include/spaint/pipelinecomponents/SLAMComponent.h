@@ -195,6 +195,13 @@ public:
   bool process_frame();
 
   /**
+  * \brief Attempts to run the SLAM component for a single frame pose.
+  *
+  * \return  true, if a frame was processed, or false otherwise.
+  */
+  bool process_frame_pose();
+
+  /**
    * \brief Resets the reconstructed scene.
    */
   void reset_scene();

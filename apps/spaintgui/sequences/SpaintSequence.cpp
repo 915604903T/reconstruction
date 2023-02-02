@@ -45,7 +45,12 @@ SpaintSequence::SpaintSequence(const bf::path& dir, size_t initialFrameNumber, d
   }
   else
   {
-    throw std::runtime_error("Error: The directory '" + dir.string() + "' does not contain depth images that follow a known naming convention.");
+    // throw std::runtime_error("Error: The directory '" + dir.string() + "' does not contain depth images that follow a known naming convention.");
+    //only need pose file
+    m_depthImageMask = "";
+    m_poseFileMask = (dir / "frame-%06i.pose.txt").string();
+    m_rgbImageMask = "";
+    m_semanticImageMask = "";
   }
 }
 

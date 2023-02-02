@@ -8,6 +8,7 @@
 
 #include <spaint/fiducials/FiducialDetector.h>
 #include <spaint/pipelinecomponents/CollaborativeComponent.h>
+#include <map>
 
 #include "MultiScenePipeline.h"
 
@@ -18,6 +19,9 @@ class CollaborativePipeline : public MultiScenePipeline
 {
   //#################### PRIVATE VARIABLES ####################
 private:
+  /** A map for scene model dir and scene id */
+  std::map <std::string, std::string> m_sceneDirs;
+
   /** A flag indicating whether or not we should start running collaborative pose estimation. */
   bool m_collaborationStarted;
 
