@@ -25,7 +25,7 @@ CollaborativePipeline::CollaborativePipeline(const Settings_Ptr &settings,
   : MultiScenePipeline("collaborative", settings, resourcesDir, 2, mappingServer), 
     m_collaborationStarted(false), 
     m_detectFiducials(detectFiducials),
-    // m_worldIsRemote(imageSourceEngines.empty())
+    // m_worldIsRemote(imageSourceEngines.empty()),
     m_worldIsRemote(false),
     m_sceneDirs(sceneDirs)
 {

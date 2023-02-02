@@ -6,6 +6,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <map>
+#include <utility>
 
 #include <boost/program_options.hpp>
 #include <boost/tokenizer.hpp>
@@ -490,20 +492,22 @@ boost::shared_ptr<CompositeImageSourceEngine> make_image_source_engine(const Com
 
 std::vector<CompositeImageSourceEngine_Ptr> make_image_source_engines(const CommandLineArguments &args)
 {
-  std::vector<CompositeImageSourceEngine_Ptr> imageSourceEngines;
-  if(args.scene1 && args.scene2)
+  std::vector<CompositeImageSourceEngine_Ptr> ImageSourceEngines;
+  if(args.scene1!="" && args.scene2!="")
   {
+	boost::filesystem::path current_path = boost::filesystem::current_path();
+
     CompositeImageSourceEngine_Ptr imageSourceEngine1(new CompositeImageSourceEngine);
-    const std::string calibrationFilename1 = ("./" + args.scene1 / "calib.txt").string();
+    const std::string calibrationFilename1 = ( current_path / args.scene1 / "calib.txt").string();
     imageSourceEngine1->addSubengine(new IdleImageSourceEngine(calibrationFilename1.c_str()));
-    ImageSourceEngines.push_back(ImageSourceEngine1);
+    ImageSourceEngines.push_back(imageSourceEngine1);
 
     CompositeImageSourceEngine_Ptr imageSourceEngine2(new CompositeImageSourceEngine);
-    const std::string calibrationFilename2 = ("./" + args.scene2 / "calib.txt").string();
+    const std::string calibrationFilename2 = (current_path / args.scene2 / "calib.txt").string();
     imageSourceEngine2->addSubengine(new IdleImageSourceEngine(calibrationFilename2.c_str()));
-    ImageSourceEngines.push_back(ImageSourceEngine2);
+    ImageSourceEngines.push_back(imageSourceEngine2);
   }
-  return imageSourceEngines;
+  return ImageSourceEngines;
 }
 
 /**
@@ -1004,9 +1008,10 @@ try
   // set batch mode as default
   const CollaborationMode collaborationMode = CM_BATCH;
 
-  map<std::string, std::string> sceneDirs;
-  sceneDirs.insert(pair<std::string, std::string>("World", ("./" + args.scene1 / "model").string()));
-  sceneDirs.insert(pair<std::string, std::string>("Local1", ("./" + args.scene2 / "model").string()));
+  std::map<std::string, std::string> sceneDirs;
+  boost::filesystem::path current_path = boost::filesystem::current_path();
+  sceneDirs.insert(std::pair<std::string, std::string>("World", (current_path / args.scene1 / "model").string()));
+  sceneDirs.insert(std::pair<std::string, std::string>("Local1", (current_path / args.scene2 / "model").string()));
 
   pipeline.reset(new CollaborativePipeline(settings,
                                            Application::resources_dir().string(),

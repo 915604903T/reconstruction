@@ -36,13 +36,15 @@ private:
 
   //#################### CONSTRUCTORS ####################
 public:
-  CollaborativePipeline(const Settings_Ptr& settings, const std::string& resourcesDir,
+  CollaborativePipeline(const Settings_Ptr& settings, 
+						const std::string& resourcesDir,
                         const std::vector<CompositeImageSourceEngine_Ptr>& imageSourceEngines,
                         const std::vector<std::string>& trackerConfigs,
                         const std::vector<spaint::SLAMComponent::MappingMode>& mappingModes,
                         const std::vector<spaint::SLAMComponent::TrackingMode>& trackingModes,
                         bool detectFiducials = false, const itmx::MappingServer_Ptr& mappingServer = itmx::MappingServer_Ptr(),
-                        spaint::CollaborationMode collaborationMode = spaint::CM_LIVE);
+                        spaint::CollaborationMode collaborationMode = spaint::CM_LIVE, 
+						const std::map<std::string, std::string> &sceneDirs = std::map<std::string, std::string>());
 
   //#################### PUBLIC MEMBER FUNCTIONS ####################
 public:
