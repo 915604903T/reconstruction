@@ -80,24 +80,10 @@ CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& c
   const std::string settingsNamespace = "CollaborativeComponent.";
   m_considerPoorRelocalisations = settings->get_first_value<bool>(settingsNamespace + "considerPoorRelocalisations", mode == CM_LIVE);
   m_stopAtFirstConsistentReconstruction = settings->get_first_value<bool>(settingsNamespace + "stopAtFirstConsistentReconstruction", false);
-  // m_timeCollaboration = settings->get_first_value<bool>(settingsNamespace + "timeCollaboration", false);
-  m_timeCollaboration = true;
-
-  int cpuCnt = sysconf(_SC_NPROCESSORS_CONF);
-  int average = cpuCnt/relocalisationThreadsCount;
-  for (int i=0; i<relocalisationThreadsCount; i++) {
-    cpu_set_t mask;
-    CPU_ZERO(&mask);
-	std::cout << "for " << i << "relocalisationThread: " << i*average << "~" << (i+1)*average-1 << "\n"; 
-    for (int j=i*average; j<cpuCnt&&j<(i+1)*average; j++) {
-      CPU_SET(j, &mask);
-    }
-    m_relocalisationThreads[i] = boost::thread(boost::bind(&CollaborativeComponent::run_relocalisation, this, mask));
-  }
-  // m_relocalisationThread = boost::thread(boost::bind(&CollaborativeComponent::run_relocalisation, this));
+  m_timeCollaboration = settings->get_first_value<bool>(settingsNamespace + "timeCollaboration", false);
 
   const std::string globalPosesSpecifier = settings->get_first_value<std::string>("globalPosesSpecifier", "");
-  m_context->get_collaborative_pose_optimiser()->start(globalPosesSpecifier);
+
 }
 
 //#################### DESTRUCTOR ####################

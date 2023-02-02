@@ -51,8 +51,9 @@ using namespace tvgutil;
 
 //#################### CONSTRUCTORS ####################
 
-Application::Application(const MultiScenePipeline_Ptr& pipeline, bool renderFiducials)
-: m_activeSubwindowIndex(0),
+Application::Application(const MultiScenePipeline_Ptr& pipeline, bool renderFiducials, std::string name)
+: m_name(name),
+  m_activeSubwindowIndex(0),
   m_batchModeEnabled(false),
   m_commandManager(10),
   m_pauseBetweenFrames(true),
@@ -141,7 +142,9 @@ bool Application::run()
   if(m_saveMeshOnExit) save_mesh();
 
   // If desired, save a model of each scene before the application terminates.
-  if(m_saveModelsOnExit) save_models();
+  // if(m_saveModelsOnExit) save_models();
+  // set save model as default to save voxel scene for relocalisation later
+  save_models();
 
   return true;
 }
@@ -1033,12 +1036,14 @@ void Application::save_mesh() const
 void Application::save_models() const
 {
   // Find the models directory and make sure it exists.
-  boost::filesystem::path modelsSubdir = find_subdir_from_executable("models");
+  // boost::filesystem::path modelsSubdir = find_subdir_from_executable("models");
+  boost::filesystem::path modelsSubdir = "./" + m_name;
   boost::filesystem::create_directories(modelsSubdir);
 
   // Determine the directory to use for saving the models, based on either the experiment tag (if specified) or the current timestamp (otherwise).
   const Settings_CPtr& settings = m_pipeline->get_model()->get_settings();
-  std::string modelName = settings->get_first_value<std::string>("experimentTag", TimeUtil::get_iso_timestamp());
+  // std::string modelName = settings->get_first_value<std::string>("experimentTag", TimeUtil::get_iso_timestamp());
+  std::string modelName = m_name;
   boost::filesystem::path outputDir = modelsSubdir / modelName;
 
   // Save the models to disk.

@@ -45,6 +45,9 @@ public:
 
   //#################### PRIVATE VARIABLES ####################
 private:
+  /** Save model and relocalisation to this file. */
+  std::string m_name;
+
   /** The index of the sub-window with which the user is interacting. */
   size_t m_activeSubwindowIndex;
 

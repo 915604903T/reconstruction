@@ -51,26 +51,6 @@ CollaborativePipeline::CollaborativePipeline(const Settings_Ptr& settings, const
     }
   }
 
-  // Finally, we add a collaborative component to handle relocalisation between the different scenes.
- /* std::cout << "after SLAMComponent allocate\n";
-  for(int i = 0; i < 3; ++i)
-  {
-    // Set the GPU as active.
-    ORcudaSafeCall(cudaSetDevice(i));
-
-    // Look up its memory usage.
-    size_t freeMemory, totalMemory;
-    ORcudaSafeCall(cudaMemGetInfo(&freeMemory, &totalMemory));
-
-    // Convert the memory usage to MB.
-    const size_t bytesPerMb = 1024 * 1024;
-    const size_t freeMb = freeMemory / bytesPerMb;
-    const size_t usedMb = (totalMemory - freeMemory) / bytesPerMb;
-    const size_t totalMb = totalMemory / bytesPerMb;
-
-    // Save the memory usage to the output stream.
-    std::cout << i << " freeMb: " << freeMb << ";" << " usedMb: " << usedMb << ";" << " totalMb: "<< totalMb << "\n";
-  }*/
   m_collaborativeComponent.reset(new CollaborativeComponent(m_model, collaborationMode));
 }
 
