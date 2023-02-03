@@ -6,6 +6,7 @@
 #include "pipelinecomponents/SLAMComponent.h"
 using namespace orx;
 
+#include <typeinfo>
 #include <boost/filesystem.hpp>
 #include <boost/serialization/extended_type_info.hpp>
 #include <boost/serialization/singleton.hpp>
@@ -373,16 +374,32 @@ bool SLAMComponent::process_frame_pose()
   }
   else
   {
-    const SLAMState::InputStatus inputStatus = m_imageSourceEngine->hasMoreImages() ? SLAMState::IS_IDLE : SLAMState::IS_TERMINATED;
-
+    // const SLAMState::InputStatus inputStatus = m_imageSourceEngine->hasMoreImages() ? SLAMState::IS_IDLE : SLAMState::IS_TERMINATED;
+	const SLAMState::InputStatus inputStatus = SLAMState::IS_TERMINATED;
     // If finish training is enabled and no more images are expected, let the relocaliser know that no more calls will be made to its train or update functions.
     if(m_finishTrainingEnabled && inputStatus == SLAMState::IS_TERMINATED && slamState->get_input_status() != SLAMState::IS_TERMINATED)
     {
       m_context->get_relocaliser(m_sceneID)->finish_training();
     }
+	const SLAMState_Ptr& slamState = m_context->get_slam_state(m_sceneID);
+	auto pose = slamState->get_tracking_state()->pose_d->GetM();
+	std::cout << "this is " << m_sceneID << " pose: \n" << pose << "\n";
+    
+	slamState->set_input_status(inputStatus);
 
-    slamState->set_input_status(inputStatus);
+	const TrackingState_Ptr& trackingState = slamState->get_tracking_state();
+	const View_Ptr& view = slamState->get_view();
 
+	SE3Pose oldPose(*trackingState->pose_d);
+
+	m_trackingController->Track(trackingState.get(), view.get());
+	std::cout << "1 this is " << m_sceneID << " pose: \n" << trackingState->pose_d->GetM() << "\n";
+	m_trackingController->Track(trackingState.get(), view.get());
+    std::cout << "2 this is " << m_sceneID << " pose: \n" << trackingState->pose_d->GetM() << "\n";
+	m_trackingController->Track(trackingState.get(), view.get());
+    std::cout << "3 this is " << m_sceneID << " pose: \n" << trackingState->pose_d->GetM() << "\n";
+	m_trackingController->Track(trackingState.get(), view.get());
+    std::cout << "4 this is " << m_sceneID << " pose: \n" << trackingState->pose_d->GetM() << "\n";
     return false;
   }
   /*
@@ -854,7 +871,7 @@ void SLAMComponent::setup_tracker()
   const SLAMState_Ptr& slamState = m_context->get_slam_state(m_sceneID);
   const Vector2i& depthImageSize = slamState->get_depth_image_size();
   const Vector2i& rgbImageSize = slamState->get_rgb_image_size();
-
+  
   m_imuCalibrator.reset(new ITMIMUCalibrator_iPad);
   m_tracker = m_context->get_tracker_factory().make_tracker_from_string(
     m_trackerConfig, m_sceneID, m_trackingMode == TRACK_SURFELS, rgbImageSize, depthImageSize, m_lowLevelEngine, m_imuCalibrator, settings, m_fallibleTracker, mappingServer
