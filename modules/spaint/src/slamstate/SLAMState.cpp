@@ -103,7 +103,7 @@ const TrackingController_Ptr& SLAMState::get_tracking_controller()
   return m_trackingController;
 }
 
-TrackingController_Ptr SLAMState::get_tracking_controller() const
+TrackingController_CPtr SLAMState::get_tracking_controller() const
 {
   return m_trackingController;
 }

@@ -99,14 +99,14 @@ CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& c
   
   // load pose from file
   for (auto it : scenesPoseCnt) {
-    std::string sceneID = it->first;
-    const SLAMState_Ptr &slamState = m_context->get_slam_state(sceneID);
-    const TrackingState_Ptr &trackingState = slamState->get_tracking_state();
-    const View_Ptr &view = slamState->get_view();
-    const TrackingController_Ptr &trackingController = slamState->get_tracking_controller();
-    for (size_t i = 0, poseSize = it->second; i<poseSize; ++i) {
+    std::string sceneID = it.first;
+    const SLAMState_CPtr &slamState = m_context->get_slam_state(sceneID);
+    const TrackingState_CPtr &trackingState = slamState->get_tracking_state();
+	const View_CPtr &view = slamState->get_view();
+    const TrackingController_CPtr &trackingController = slamState->get_tracking_controller();
+    for (size_t i = 0, poseSize = it.second; i<poseSize; ++i) {
       trackingController->Track(trackingState.get(), view.get());
-      m_trajectories[sceneIDs[i]].push_back(*trackingState->pose_d);
+      m_trajectories[sceneID].push_back(*trackingState->pose_d);
     }
   }
   
