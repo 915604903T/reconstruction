@@ -197,20 +197,6 @@ public:
    *
    * \return  The current tracking state for the scene.
    */
-  const TrackingController_Ptr& get_tracking_controller();
-
-    /**
-   * \brief Gets the current tracking state for the scene.
-   *
-   * \return  The current tracking state for the scene.
-   */
-  TrackingController_CPtr& get_tracking_controller() const;
-
-  /**
-   * \brief Gets the current tracking state for the scene.
-   *
-   * \return  The current tracking state for the scene.
-   */
   const TrackingState_Ptr& get_tracking_state();
 
   /**

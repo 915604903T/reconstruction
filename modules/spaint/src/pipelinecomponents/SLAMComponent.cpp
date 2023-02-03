@@ -137,6 +137,8 @@ bool SLAMComponent::get_fusion_enabled() const { return m_fusionEnabled; }
 
 const std::string &SLAMComponent::get_scene_id() const { return m_sceneID; }
 
+TrackingController_Ptr& get_tracking_controller() { return m_trackingController; }
+
 void SLAMComponent::load_models(const std::string &inputDir)
 {
   // Reset the scene.

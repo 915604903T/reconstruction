@@ -98,16 +98,6 @@ SpaintSurfelScene_CPtr SLAMState::get_surfel_scene() const
   return m_surfelScene;
 }
 
-const TrackingController_Ptr& SLAMState::get_tracking_controller()
-{
-  return m_trackingController;
-}
-
-TrackingController_CPtr SLAMState::get_tracking_controller() const
-{
-  return m_trackingController;
-}
-
 const TrackingState_Ptr& SLAMState::get_tracking_state()
 {
   return m_trackingState;

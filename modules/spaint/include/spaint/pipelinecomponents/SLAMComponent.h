@@ -173,12 +173,12 @@ public:
    */
   const std::string& get_scene_id() const;
 
-   /**
-   * \brief Gets tracking controller of this SLAM component.
+    /**
+   * \brief Gets the ID of the scene being reconstructed by this SLAM component.
    *
-   * \return  The tracking controller of this SLAM component.
+   * \return  The ID of the scene being reconstructed by this SLAM component.
    */
-  const TrackingController_Ptr& get_tracking_controller() const;
+  TrackingController_Ptr& get_tracking_controller();
 
   /**
    * \brief Replaces the SLAM component's voxel (and surfel model, if available) with ones loaded from the specified directory on disk.

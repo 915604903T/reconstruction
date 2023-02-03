@@ -89,6 +89,9 @@ private:
   /** Whether or not to compute the time spent collaborating. */
   bool m_timeCollaboration;
 
+  /** Tracking controller to update pose */
+  std::map<std::string, TrackingController_Ptr> m_trackingControllers;
+
   /** The trajectories followed by the cameras that reconstructed each of the different scenes (only poses where tracking succeeded are stored). */
   std::map<std::string,std::deque<ORUtils::SE3Pose> > m_trajectories;
 
@@ -107,7 +110,8 @@ public:
    * \param mode    The mode in which the collaborative reconstruction should run.
    */
   CollaborativeComponent(const CollaborativeContext_Ptr& context, CollaborationMode mode, 
-                         const std::map<std::string, int> &scenesPoseCnt);
+                         const std::map<std::string, int> &scenesPoseCnt, 
+                         const std::map<std::string, TrackingController_Ptr> &trackingControllers);
 
   //#################### DESTRUCTOR ####################
 public:

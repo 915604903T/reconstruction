@@ -68,8 +68,10 @@ namespace spaint {
 //#################### CONSTRUCTORS ####################
 
 CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& context, CollaborationMode mode, 
-                                               const std::map<std::string, int> &scenesPoseCnt)
+                                               const std::map<std::string, int> &scenesPoseCnt, 
+                                               const std::map<std::string, TrackingController_Ptr> &trackingControllers)
 : m_context(context),
+  m_trackingControllers(trackingControllers),
   m_frameIndex(0),
   m_mode(mode),
   m_reconstructionIsConsistent(false),
@@ -100,12 +102,14 @@ CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& c
   // load pose from file
   for (auto it : scenesPoseCnt) {
     std::string sceneID = it.first;
-    const SLAMState_CPtr &slamState = m_context->get_slam_state(sceneID);
-    const TrackingState_CPtr &trackingState = slamState->get_tracking_state();
-	const View_CPtr &view = slamState->get_view();
-    const TrackingController_CPtr &trackingController = slamState->get_tracking_controller();
+
+    const SLAMState_Ptr &slamState = m_context->get_slam_state(sceneID);
+	  const View_Ptr &view = slamState->get_view();
+    const TrackingState_Ptr &trackingState = slamState->get_tracking_state();
+
+    TrackingController_Ptr tracker = m_trackingControllers[sceneID];
     for (size_t i = 0, poseSize = it.second; i<poseSize; ++i) {
-      trackingController->Track(trackingState.get(), view.get());
+      tracker->Track(trackingState.get(), view.get());
       m_trajectories[sceneID].push_back(*trackingState->pose_d);
     }
   }

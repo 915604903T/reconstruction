@@ -98,7 +98,8 @@ bool Application::run()
 
     // Take action as relevant based on the current input state.
     process_input();
-
+    std::cout << "this is process_input: " << i << "\n";
+    
     // If the application is unpaused, process a new frame.
     if(!m_paused)
     {
