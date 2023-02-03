@@ -1036,7 +1036,7 @@ try
 
   pipeline.reset(new CollaborativePipeline(settings,
                                            Application::resources_dir().string(),
-                                           
+                                           scenesPoseCnt,
                                            imageSourceEngines,
                                            trackerConfigs,
                                            mappingModes,

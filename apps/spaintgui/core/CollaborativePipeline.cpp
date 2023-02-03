@@ -47,9 +47,9 @@ CollaborativePipeline::CollaborativePipeline(const Settings_Ptr &settings,
   {
     const std::string sceneID = i == 0 ? Model::get_world_scene_id() : "Local" + boost::lexical_cast<std::string>(i);
     m_slamComponents[sceneID].reset(new SLAMComponent(
-        m_model, sceneID, imageSourceEngines[i], trackerConfigs[i], scenesPoseCnt[sceneID], mappingModes[i], trackingModes[i], detectFiducials));
+        m_model, sceneID, imageSourceEngines[i], trackerConfigs[i], mappingModes[i], trackingModes[i], detectFiducials));
     load_models(m_slamComponents[sceneID], m_sceneDirs[sceneID]);
-    trackingControllers[sceneID] = m_slamComponents[sceneID].get_tracking_controller();
+    trackingControllers[sceneID] = m_slamComponents[sceneID]->get_tracking_controller();
   }
 
   m_collaborativeComponent.reset(new CollaborativeComponent(m_model, collaborationMode, scenesPoseCnt, trackingControllers));
