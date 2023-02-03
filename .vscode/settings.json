@@ -64,6 +64,10 @@
         "xutility": "cpp",
         "ratio": "cpp",
         "stop_token": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "condition_variable": "cpp",
+        "cstdarg": "cpp",
+        "mutex": "cpp",
+        "unordered_set": "cpp"
     }
 }

@@ -98,6 +98,16 @@ SpaintSurfelScene_CPtr SLAMState::get_surfel_scene() const
   return m_surfelScene;
 }
 
+const TrackingController_Ptr& SLAMState::get_tracking_controller()
+{
+  return m_trackingController;
+}
+
+TrackingController_Ptr SLAMState::get_tracking_controller() const
+{
+  return m_trackingController;
+}
+
 const TrackingState_Ptr& SLAMState::get_tracking_state()
 {
   return m_trackingState;
@@ -166,6 +176,11 @@ void SLAMState::set_pose(const ORUtils::SE3Pose& pose)
 void SLAMState::set_surfel_scene(const SpaintSurfelScene_Ptr& surfelScene)
 {
   m_surfelScene = surfelScene;
+}
+
+void SLAMState::set_tracking_controller(const TrackingController_Ptr& trackingController)
+{
+  m_trackingController = trackingController;
 }
 
 void SLAMState::set_tracking_state(const TrackingState_Ptr& trackingState)

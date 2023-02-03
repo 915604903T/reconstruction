@@ -58,6 +58,9 @@ private:
   /** The shared context needed for SLAM. */
   SLAMContext_Ptr m_context;
 
+  /** Pose count for tracker*/
+  int m_poseCnt;
+
   /** The dense surfel mapper. */
   DenseSurfelMapper_Ptr m_denseSurfelMapper;
 
@@ -150,7 +153,8 @@ public:
    * \param trackingMode      The tracking mode to use.
    * \param detectFiducials   Whether or not to initially detect fiducials in the scene.
    */
-  SLAMComponent(const SLAMContext_Ptr& context, const std::string& sceneID, const ImageSourceEngine_Ptr& imageSourceEngine, const std::string& trackerConfig,
+  SLAMComponent(const SLAMContext_Ptr& context, const std::string& sceneID, 
+                const ImageSourceEngine_Ptr& imageSourceEngine, const std::string& trackerConfig,
                 MappingMode mappingMode = MAP_VOXELS_ONLY, TrackingMode trackingMode = TRACK_VOXELS, bool detectFiducials = false);
 
   //#################### PUBLIC MEMBER FUNCTIONS ####################
@@ -168,6 +172,13 @@ public:
    * \return  The ID of the scene being reconstructed by this SLAM component.
    */
   const std::string& get_scene_id() const;
+
+   /**
+   * \brief Gets tracking controller of this SLAM component.
+   *
+   * \return  The tracking controller of this SLAM component.
+   */
+  const TrackingController_Ptr& get_tracking_controller() const;
 
   /**
    * \brief Replaces the SLAM component's voxel (and surfel model, if available) with ones loaded from the specified directory on disk.

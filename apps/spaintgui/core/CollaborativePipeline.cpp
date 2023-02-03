@@ -13,6 +13,7 @@ using namespace spaint;
 
 CollaborativePipeline::CollaborativePipeline(const Settings_Ptr &settings,
                                              const std::string &resourcesDir,
+                                             const std::map<std::string, int> &scenesPoseCnt,
                                              const std::vector<CompositeImageSourceEngine_Ptr> &imageSourceEngines,
                                              const std::vector<std::string> &trackerConfigs,
                                              const std::vector<SLAMComponent::MappingMode> &mappingModes,
@@ -45,10 +46,22 @@ CollaborativePipeline::CollaborativePipeline(const Settings_Ptr &settings,
   {
     const std::string sceneID = i == 0 ? Model::get_world_scene_id() : "Local" + boost::lexical_cast<std::string>(i);
     m_slamComponents[sceneID].reset(new SLAMComponent(
-        m_model, sceneID, imageSourceEngines[i], trackerConfigs[i], mappingModes[i], trackingModes[i], detectFiducials));
+        m_model, sceneID, imageSourceEngines[i], trackerConfigs[i], scenesPoseCnt[sceneID], mappingModes[i], trackingModes[i], detectFiducials));
     load_models(m_slamComponents[sceneID], m_sceneDirs[sceneID]);
   }
+  // load pose
+  /*
+    const TrackingController_Ptr &trackingController = m_slamComponents[sceneID].get_tracking_controller();
 
+    const SLAMState_Ptr &slamState = m_model->get_slam_state(sceneID);
+    const TrackingState_Ptr &trackingState = slamState->get_tracking_state();
+    const View_Ptr &view = slamState->get_view();
+
+    for (size_t j = 0, poseSize = scenesPoseCnt.size(); j<poseSize; ++j)
+    {
+      m_trackingController->Track(trackingState.get(), view.get());
+    }
+  */
   // Finally, we add a collaborative component to handle relocalisation between the different scenes.
   m_collaborativeComponent.reset(new CollaborativeComponent(m_model, collaborationMode));
 }

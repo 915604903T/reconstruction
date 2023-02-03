@@ -37,7 +37,8 @@ private:
   //#################### CONSTRUCTORS ####################
 public:
   CollaborativePipeline(const Settings_Ptr& settings, 
-						const std::string& resourcesDir,
+						            const std::string& resourcesDir,
+                        const std::map<std::string, int>& scenesPoseCnt,
                         const std::vector<CompositeImageSourceEngine_Ptr>& imageSourceEngines,
                         const std::vector<std::string>& trackerConfigs,
                         const std::vector<spaint::SLAMComponent::MappingMode>& mappingModes,

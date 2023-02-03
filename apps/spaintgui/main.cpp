@@ -1010,14 +1010,33 @@ try
   // const CollaborationMode collaborationMode = args.collaborationMode == "batch" ? CM_BATCH : CM_LIVE;
   // set batch mode as default
   const CollaborationMode collaborationMode = CM_BATCH;
+  std::vector<std::string> sceneIDs;
+  sceneIDs.push_back("World");
+  sceneIDs.push_back("Local1");
 
   std::map<std::string, std::string> sceneDirs;
   boost::filesystem::path current_path = boost::filesystem::current_path();
-  sceneDirs.insert(std::pair<std::string, std::string>("World", (current_path / args.scene1 / "model").string()));
-  sceneDirs.insert(std::pair<std::string, std::string>("Local1", (current_path / args.scene2 / "model").string()));
+  sceneDirs.insert(std::pair<std::string, std::string>(sceneIDs[0], (current_path / args.scene1 / "model").string()));
+  sceneDirs.insert(std::pair<std::string, std::string>(sceneIDs[1], (current_path / args.scene2 / "model").string()));
+
+  // only two scene to relocalise
+  std::map<std::string, int> scenesPoseCnt;
+  for(size_t i = 0, size = args.sequenceSpecifiers.size(); i < size; ++i)
+  {
+    const std::string &sequenceSpecifier = args.sequenceSpecifiers[i];
+    bf::path dir = sequenceSpecifier;
+    bf::directory_iterator endIter;
+    int count = 0;
+    for (bf::directory_iterator iter(dir); iter!=endIter; iter++) 
+    {
+      count++;
+    }
+    scenesPoseCnt.insert(std::pair<std::string, int>(sceneIDs[i], count-1));
+  }
 
   pipeline.reset(new CollaborativePipeline(settings,
                                            Application::resources_dir().string(),
+                                           
                                            imageSourceEngines,
                                            trackerConfigs,
                                            mappingModes,

@@ -67,7 +67,8 @@ namespace spaint {
 
 //#################### CONSTRUCTORS ####################
 
-CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& context, CollaborationMode mode)
+CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& context, CollaborationMode mode, 
+                                               const std::map<std::string, int> &scenesPoseCnt)
 : m_context(context),
   m_frameIndex(0),
   m_mode(mode),
@@ -88,14 +89,27 @@ CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& c
   for (int i=0; i<relocalisationThreadsCount; i++) {
     cpu_set_t mask;
     CPU_ZERO(&mask);
-	std::cout << "for " << i << "relocalisationThread: " << i*average << "~" << (i+1)*average-1 << "\n"; 
+	  std::cout << "for " << i << "relocalisationThread: " << i*average << "~" << (i+1)*average-1 << "\n"; 
     for (int j=i*average; j<cpuCnt&&j<(i+1)*average; j++) {
       CPU_SET(j, &mask);
     }
     m_relocalisationThreads[i] = boost::thread(boost::bind(&CollaborativeComponent::run_relocalisation, this, mask));
   }
   // m_relocalisationThread = boost::thread(boost::bind(&CollaborativeComponent::run_relocalisation, this));
-
+  
+  // load pose from file
+  for (auto it : scenesPoseCnt) {
+    std::string sceneID = it->first;
+    const SLAMState_Ptr &slamState = m_context->get_slam_state(sceneID);
+    const TrackingState_Ptr &trackingState = slamState->get_tracking_state();
+    const View_Ptr &view = slamState->get_view();
+    const TrackingController_Ptr &trackingController = slamState->get_tracking_controller();
+    for (size_t i = 0, poseSize = it->second; i<poseSize; ++i) {
+      trackingController->Track(trackingState.get(), view.get());
+      m_trajectories[sceneIDs[i]].push_back(*trackingState->pose_d);
+    }
+  }
+  
   const std::string globalPosesSpecifier = settings->get_first_value<std::string>("globalPosesSpecifier", "");
   m_context->get_collaborative_pose_optimiser()->start(globalPosesSpecifier);
 }

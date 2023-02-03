@@ -106,7 +106,8 @@ public:
    * \param context The shared context needed for collaborative SLAM.
    * \param mode    The mode in which the collaborative reconstruction should run.
    */
-  CollaborativeComponent(const CollaborativeContext_Ptr& context, CollaborationMode mode);
+  CollaborativeComponent(const CollaborativeContext_Ptr& context, CollaborationMode mode, 
+                         const std::map<std::string, int> &scenesPoseCnt);
 
   //#################### DESTRUCTOR ####################
 public:
