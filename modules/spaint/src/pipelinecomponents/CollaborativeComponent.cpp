@@ -73,6 +73,7 @@ CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& c
 : m_context(context),
   m_trackingControllers(trackingControllers),
   m_frameIndex(0),
+  m_collaborativeCnt(0),
   m_mode(mode),
   m_reconstructionIsConsistent(false),
   m_rng(12345),
@@ -147,8 +148,49 @@ CollaborativeComponent::~CollaborativeComponent()
 
 //#################### PUBLIC MEMBER FUNCTIONS ####################
 
-void CollaborativeComponent::run_collaborative_pose_estimation()
+bool CollaborativeComponent::run_collaborative_pose_estimation()
 {
+  // Start the collaboration timer if required.
+  if(m_timeCollaboration && !m_collaborationTimer)
+  {
+    std::cout << "Collaboration starting at frame: " << m_frameIndex << '\n';
+    m_collaborationTimer.reset(boost::timer::cpu_timer());
+  }
+  // Check to see whether the reconstruction has just become consistent.
+  if(!m_reconstructionIsConsistent)
+  {
+    const std::vector<std::string> sceneIDs = m_context->get_scene_ids();
+    m_reconstructionIsConsistent = true;
+    for(size_t sceneIdx = 0; sceneIdx < sceneIDs.size(); ++sceneIdx)
+    {
+      if(!m_context->get_collaborative_pose_optimiser()->try_get_estimated_global_pose(sceneIDs[sceneIdx]))
+      {
+        m_reconstructionIsConsistent = false;
+        break;
+      }
+    }
+
+    if(m_reconstructionIsConsistent) std::cout << "The reconstruction became consistent at frame: " << m_frameIndex << '\n';
+  }
+
+  // If the reconstruction is consistent and we're stopping at the first consistent reconstruction:
+  if(m_reconstructionIsConsistent && m_stopAtFirstConsistentReconstruction)
+  {
+    // Stop the collaboration timer if necessary.
+    if(m_collaborationTimer) m_collaborationTimer->stop();
+
+    // Early out to prevent any more relocalisation attempts being scheduled.
+    return;
+  }
+
+  // Otherwise, try to schedule a relocalisation attempt.
+  try_schedule_relocalisation();
+
+  ++m_frameIndex;
+
+  std::cout << "this is m_reconstructionIsConsistent: " << m_reconstructionIsConsistent << "\n";
+  return m_reconstructionIsConsistent;
+  /*
   bool fusionMayStillRun = update_trajectories();
   if(!fusionMayStillRun) m_mode = CM_BATCH;
   if(m_frameIndex > 0 && (!fusionMayStillRun || (m_mode == CM_LIVE && m_frameIndex % 50 == 0)))
@@ -196,6 +238,7 @@ void CollaborativeComponent::run_collaborative_pose_estimation()
 #if defined(WITH_OPENCV) && 0
   cv::waitKey(1);
 #endif
+  */
 }
 
 //#################### PRIVATE MEMBER FUNCTIONS ####################

@@ -80,8 +80,8 @@ std::set<std::string> MultiScenePipeline::run_main_section()
   for(std::map<std::string,SLAMComponent_Ptr>::const_iterator it = m_slamComponents.begin(), iend = m_slamComponents.end(); it != iend; ++it)
   {
 	std::cout << "this is slamcomponent first: " << it->first << "\n";
-    // if(it->second->process_frame()) result.insert(it->first);
-	if(it->second->process_frame_pose()) result.insert(it->first);
+  if(it->second->process_frame()) result.insert(it->first);
+	// if(it->second->process_frame_pose()) result.insert(it->first);
   }
   return result;
 }

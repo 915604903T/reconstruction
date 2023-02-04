@@ -54,6 +54,9 @@ private:
   /** The current frame index (in practice, the number of times that run_collaborative_pose_estimation has been called). */
   int m_frameIndex;
 
+  /** The number of times that run_collaborative_pose_estimation has been called. */
+  int m_collaborativeCnt;
+
   /** The mode in which the collaboration reconstruction should run. */
   CollaborationMode m_mode;
 
@@ -125,7 +128,7 @@ public:
   /**
    * \brief Attempts to estimate the poses of the different scenes involved in the collaborative reconstruction.
    */
-  void run_collaborative_pose_estimation();
+  bool run_collaborative_pose_estimation();
 
   //#################### PRIVATE MEMBER FUNCTIONS ####################
 private:

@@ -99,7 +99,7 @@ bool Application::run()
     // Take action as relevant based on the current input state.
     process_input();
     std::cout << "this is process_input: " << i << "\n";
-    
+
     // If the application is unpaused, process a new frame.
     if(!m_paused)
     {
@@ -121,6 +121,7 @@ bool Application::run()
     }
 
     // Render the scene.
+    /*
     m_renderer->render(m_fracWindowPos, m_renderFiducials);
 
     // If we're running a mapping server and we want to render any scene images requested by remote clients, do so.
@@ -136,6 +137,7 @@ bool Application::run()
 
     // If desired, pause at the end of each frame for debugging purposes.
     if(m_pauseBetweenFrames) m_paused = true;
+    */
   }
 
   // If desired, save a mesh of the scene before the application terminates.

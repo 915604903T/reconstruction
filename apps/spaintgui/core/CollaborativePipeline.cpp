@@ -60,7 +60,8 @@ CollaborativePipeline::CollaborativePipeline(const Settings_Ptr &settings,
 std::set<std::string> CollaborativePipeline::run_main_section()
 {
   // If we're running a mapping server, add SLAM components for any newly-connected remote clients.
-  // if(m_model->get_mapping_server()) check_for_new_clients();
+  /*
+  if(m_model->get_mapping_server()) check_for_new_clients();
 
   // Run the main section of the pipeline.
   const std::set<std::string> scenesProcessed = MultiScenePipeline::run_main_section();
@@ -68,8 +69,18 @@ std::set<std::string> CollaborativePipeline::run_main_section()
   // Provided at least one of the scenes has started fusion, run the collaborative pose estimation process.
   m_collaborationStarted = m_collaborationStarted || !scenesProcessed.empty();
   if(m_collaborationStarted) m_collaborativeComponent->run_collaborative_pose_estimation();
-
-  return scenesProcessed;
+  */
+  std::set<std::string> result;
+  for(std::map<std::string,SLAMComponent_Ptr>::const_iterator it = m_slamComponents.begin(), iend = m_slamComponents.end(); it != iend; ++it)
+  {
+    std::cout << "this is slamcomponent first: " << it->first << "\n";
+    isConsistent = m_collaborativeComponent->run_collaborative_pose_estimation();
+    if (!isConsistent) 
+    {
+      result.insert(it->first);
+    }
+  }
+  return result;
 }
 
 void CollaborativePipeline::set_mode(Mode mode)
