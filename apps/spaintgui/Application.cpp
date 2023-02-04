@@ -6,6 +6,8 @@
 #include "Application.h"
 using namespace tvginput;
 
+#include <unistd.h>
+
 #include <fstream>
 #include <stdexcept>
 
@@ -98,7 +100,6 @@ bool Application::run()
 
     // Take action as relevant based on the current input state.
     process_input();
-    std::cout << "this is process_input: " << i << "\n";
 
     // If the application is unpaused, process a new frame.
     if(!m_paused)
@@ -119,7 +120,7 @@ bool Application::run()
         break;
       }
     }
-
+	sleep(1);
     // Render the scene.
     /*
     m_renderer->render(m_fracWindowPos, m_renderFiducials);
