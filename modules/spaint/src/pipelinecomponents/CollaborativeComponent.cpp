@@ -180,7 +180,7 @@ bool CollaborativeComponent::run_collaborative_pose_estimation()
     if(m_collaborationTimer) m_collaborationTimer->stop();
 
     // Early out to prevent any more relocalisation attempts being scheduled.
-    return;
+    return m_reconstructionIsConsistent;
   }
 
   // Otherwise, try to schedule a relocalisation attempt.
