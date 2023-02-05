@@ -1035,16 +1035,8 @@ void Application::save_mesh() const
 
 void Application::save_models() const
 {
-  // Find the models directory and make sure it exists.
-  // boost::filesystem::path modelsSubdir = find_subdir_from_executable("models");
-  boost::filesystem::path modelsSubdir = "./" + m_name;
-  boost::filesystem::create_directories(modelsSubdir);
-
-  // Determine the directory to use for saving the models, based on either the experiment tag (if specified) or the current timestamp (otherwise).
-  const Settings_CPtr& settings = m_pipeline->get_model()->get_settings();
-  // std::string modelName = settings->get_first_value<std::string>("experimentTag", TimeUtil::get_iso_timestamp());
   std::string modelName = m_name;
-  boost::filesystem::path outputDir = modelsSubdir / modelName;
+  boost::filesystem::path outputDir = modelName;
 
   // Save the models to disk.
   m_pipeline->save_models(outputDir);
