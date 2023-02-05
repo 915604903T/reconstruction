@@ -718,6 +718,7 @@ bool parse_command_line(int argc, char *argv[], CommandLineArguments &args, cons
   genericOptions.add_options()("help",
                                "produce help message")("batch", po::bool_switch(&args.batch), "enable batch mode")(
       "calib,c", po::value<std::string>(&args.calibrationFilename)->default_value(""), "calibration filename")(
+      "name", po::value<std::string>(&args.name), "sequence name and save directory name")(
       "cameraAfterDisk", po::bool_switch(&args.cameraAfterDisk), "switch to the camera after a disk sequence")(
       "collaborationMode",
       po::value<std::string>(&args.collaborationMode)->default_value("batch"),
@@ -851,7 +852,7 @@ try
   {
     return 0;
   }
-  
+
   // If we're not running in headless mode, initialise the GUI-only subsystems.
   if(!args.headless)
   {
@@ -924,7 +925,8 @@ try
   }
   const size_t maxLabelCount = 10;
   SLAMComponent::MappingMode mappingMode = args.mapSurfels ? SLAMComponent::MAP_BOTH : SLAMComponent::MAP_VOXELS_ONLY;
-  SLAMComponent::TrackingMode trackingMode = args.trackSurfels ? SLAMComponent::TRACK_SURFELS : SLAMComponent::TRACK_VOXELS;
+  SLAMComponent::TrackingMode trackingMode =
+      args.trackSurfels ? SLAMComponent::TRACK_SURFELS : SLAMComponent::TRACK_VOXELS;
   pipeline.reset(new SLAMPipeline(settings,
                                   Application::resources_dir().string(),
                                   make_image_source_engine(args),
