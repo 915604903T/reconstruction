@@ -30,6 +30,9 @@ public:
 
   //#################### PRIVATE VARIABLES ####################
 private:
+  /** The map of the scene ID and Scene Name*/
+  std::map<std::string, std::string> m_sceneID2Name;
+
   /** Estimates of the poses of the different scenes in the global coordinate system. */
   std::map<std::string,ORUtils::SE3Pose> m_estimatedGlobalPoses;
 
@@ -90,6 +93,13 @@ public:
 
   //#################### PUBLIC MEMBER FUNCTIONS ####################
 public:
+  /**
+   * \brief set map for SceneID and its name
+   *
+   * \param sceneID2Name The map to set.
+   */
+  void set_sceneID2Name(const std::map& sceneID2Name);
+
   /**
    * \brief Adds a sample of the transformation from the coordinate system of scene j to that of scene i.
    *

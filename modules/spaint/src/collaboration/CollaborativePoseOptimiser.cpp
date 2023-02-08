@@ -91,6 +91,11 @@ void CollaborativePoseOptimiser::add_relative_transform_sample(const std::string
 #endif
 }
 
+void CollaborativePoseOptimiser::set_sceneID2Name(const std::map& sceneID2Name)
+{
+  m_sceneID2Name = sceneID2Name;
+}
+
 void CollaborativePoseOptimiser::start(const std::string& globalPosesSpecifier)
 {
   m_globalPosesSpecifier = globalPosesSpecifier;
@@ -399,7 +404,9 @@ void CollaborativePoseOptimiser::save_global_poses() const
   // Determine the file to which to save the poses.
   const std::string dirName = "global_poses";
   const std::string globalPosesSpecifier = m_globalPosesSpecifier != "" ? m_globalPosesSpecifier : TimeUtil::get_iso_timestamp();
-  const bf::path p = find_subdir_from_executable(dirName) / (globalPosesSpecifier + ".txt");
+  // const bf::path p = find_subdir_from_executable(dirName) / (globalPosesSpecifier + ".txt");
+  const bf::path p = (dirName / globalPosesSpecifier+".txt");
+  std::cout << "this is global pose file name: " << p << "\n";
 
   // Try to ensure that the directory into which we want to save the file exists. If we can't, early out.
   try
@@ -423,7 +430,7 @@ void CollaborativePoseOptimiser::save_global_poses() const
   for(std::map<std::string,SE3Pose>::const_iterator it = m_estimatedGlobalPoses.begin(), iend = m_estimatedGlobalPoses.end(); it != iend; ++it)
   {
     DualQuatd dq = GeometryUtil::pose_to_dual_quat<double>(it->second);
-    fs << it->first << ' ' << dq << '\n';
+    fs << m_sceneID2Name[it->first] << ' ' << dq << '\n';
   }
 }
 

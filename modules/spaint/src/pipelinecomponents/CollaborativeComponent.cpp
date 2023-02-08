@@ -69,7 +69,8 @@ namespace spaint {
 
 CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& context, CollaborationMode mode, 
                                                const std::map<std::string, int> &scenesPoseCnt, 
-                                               const std::map<std::string, TrackingController_Ptr> &trackingControllers)
+                                               const std::map<std::string, TrackingController_Ptr> &trackingControllers,
+                                               const std::map<std::string, std::string> &sceneID2Name)
 : m_context(context),
   m_trackingControllers(trackingControllers),
   m_frameIndex(0),
@@ -114,9 +115,12 @@ CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& c
       m_trajectories[sceneID].push_back(*trackingState->pose_d);
     }
   }
-  
-  const std::string globalPosesSpecifier = settings->get_first_value<std::string>("globalPosesSpecifier", "");
-  m_context->get_collaborative_pose_optimiser()->start(globalPosesSpecifier);
+
+  m_context->get_collaborative_pose_optimiser()->set_sceneID2Name(sceneID2Name);
+  std::string scene1 = sceneID2Name["World"];
+  std::string scene2 = sceneID2Name["Local1"];
+  // const std::string globalPosesSpecifier = settings->get_first_value<std::string>("globalPosesSpecifier", "");
+  m_context->get_collaborative_pose_optimiser()->start(scene1 + "-" + scene2);
 }
 
 //#################### DESTRUCTOR ####################
@@ -167,7 +171,6 @@ bool CollaborativeComponent::run_collaborative_pose_estimation()
       if(!m_context->get_collaborative_pose_optimiser()->try_get_estimated_global_pose(sceneIDs[sceneIdx]))
       {
         m_reconstructionIsConsistent = false;
-		std::cout << "1111\n";
         break;
       }
     }

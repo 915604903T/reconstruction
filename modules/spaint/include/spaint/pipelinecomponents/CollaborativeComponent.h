@@ -114,7 +114,8 @@ public:
    */
   CollaborativeComponent(const CollaborativeContext_Ptr& context, CollaborationMode mode, 
                          const std::map<std::string, int> &scenesPoseCnt, 
-                         const std::map<std::string, TrackingController_Ptr> &trackingControllers);
+                         const std::map<std::string, TrackingController_Ptr> &trackingControllers,
+                         const std::map<std::string, std::string> &sceneID2Name);
 
   //#################### DESTRUCTOR ####################
 public:

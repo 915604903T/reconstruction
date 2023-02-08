@@ -14,6 +14,7 @@ using namespace spaint;
 CollaborativePipeline::CollaborativePipeline(const Settings_Ptr &settings,
                                              const std::string &resourcesDir,
                                              const std::map<std::string, int> &scenesPoseCnt,
+                                             const std::map<std::string, std::string> &sceneID2Name,
                                              const std::vector<CompositeImageSourceEngine_Ptr> &imageSourceEngines,
                                              const std::vector<std::string> &trackerConfigs,
                                              const std::vector<SLAMComponent::MappingMode> &mappingModes,
@@ -52,7 +53,7 @@ CollaborativePipeline::CollaborativePipeline(const Settings_Ptr &settings,
     trackingControllers[sceneID] = m_slamComponents[sceneID]->get_tracking_controller();
   }
 
-  m_collaborativeComponent.reset(new CollaborativeComponent(m_model, collaborationMode, scenesPoseCnt, trackingControllers));
+  m_collaborativeComponent.reset(new CollaborativeComponent(m_model, collaborationMode, scenesPoseCnt, trackingControllers, sceneID2Name));
 }
 
 //#################### PUBLIC MEMBER FUNCTIONS ####################

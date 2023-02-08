@@ -1003,7 +1003,6 @@ try
 
     // FIXME: We don't always want to read the poses from disk - make it possible to run the normal tracker instead.
     trackerConfigs.push_back(args.sequences[i]->make_disk_tracker_config());
-    // trackerConfigs.push_back(make_tracker_config(args));
   }
 
   // Construct the pipeline itself.
@@ -1034,9 +1033,14 @@ try
     scenesPoseCnt.insert(std::pair<std::string, int>(sceneIDs[i], count-1));
   }
 
+  std::map<std::string, std::string> sceneID2Name;
+  sceneID2Name.insert(std::pair<std::string, std::string>("World", args.scene1));
+  sceneID2Name.insert(std::pair<std::string, std::string>("Local1", args.scene2));
+
   pipeline.reset(new CollaborativePipeline(settings,
                                            Application::resources_dir().string(),
                                            scenesPoseCnt,
+                                           sceneID2Name,
                                            imageSourceEngines,
                                            trackerConfigs,
                                            mappingModes,
