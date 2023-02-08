@@ -7,6 +7,7 @@
 #define H_SPAINT_COLLABORATIVEPOSEOPTIMISER
 
 #include <set>
+#include <map>
 
 #include <boost/atomic.hpp>
 #include <boost/optional.hpp>
@@ -98,7 +99,7 @@ public:
    *
    * \param sceneID2Name The map to set.
    */
-  void set_sceneID2Name(const std::map& sceneID2Name);
+  void set_sceneID2Name(const std::map<std::string, std::string>& sceneID2Name);
 
   /**
    * \brief Adds a sample of the transformation from the coordinate system of scene j to that of scene i.
