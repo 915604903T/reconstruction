@@ -117,8 +117,8 @@ CollaborativeComponent::CollaborativeComponent(const CollaborativeContext_Ptr& c
   }
 
   m_context->get_collaborative_pose_optimiser()->set_sceneID2Name(sceneID2Name);
-  std::string scene1 = sceneID2Name["World"];
-  std::string scene2 = sceneID2Name["Local1"];
+  std::string scene1 = sceneID2Name.find("World")->second;
+  std::string scene2 = sceneID2Name.find("Local1")->second;
   // const std::string globalPosesSpecifier = settings->get_first_value<std::string>("globalPosesSpecifier", "");
   m_context->get_collaborative_pose_optimiser()->start(scene1 + "-" + scene2);
 }
