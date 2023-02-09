@@ -5,7 +5,9 @@
 
 #include "Application.h"
 using namespace tvginput;
+#include <time.h>  
 
+#include <stdio.h>
 #include <unistd.h>
 
 #include <fstream>
@@ -86,8 +88,16 @@ Application::Application(const MultiScenePipeline_Ptr& pipeline, bool renderFidu
 
 bool Application::run()
 {
+  time_t start, end;
+  double cost = 0;
+  time(&start);
   for(int i=0;;i++)
-  {
+  { 
+	time(&end);
+	cost = difftime(end, start);
+	if (cost>30.0) {
+		break;
+	}
     // Check to see if the user wants to quit the application, and quit if necessary. Note that if we
     // are running in batch mode, we quit directly, rather than saving a mesh of the scene on exit.
     bool eventQuit = !process_events();
@@ -103,7 +113,6 @@ bool Application::run()
     // If the application is unpaused, process a new frame.
     if(!m_paused)
     {
-	  std::cout << "in m_paused i: " << i << "\n";
       // Run the main section of the pipeline.
       const std::set<std::string> scenesProcessed = m_pipeline->run_main_section();
       if(!scenesProcessed.empty())
@@ -120,7 +129,7 @@ bool Application::run()
         break;
       }
     }
-	usleep(500000);
+	usleep(100000);
     // Render the scene.
     /*
     m_renderer->render(m_fracWindowPos, m_renderFiducials);
