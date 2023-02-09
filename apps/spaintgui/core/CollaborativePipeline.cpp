@@ -74,7 +74,6 @@ std::set<std::string> CollaborativePipeline::run_main_section()
   std::set<std::string> result;
   for(std::map<std::string,SLAMComponent_Ptr>::const_iterator it = m_slamComponents.begin(), iend = m_slamComponents.end(); it != iend; ++it)
   {
-    std::cout << "[pipeline] this is slamcomponent first: " << it->first << "\n";
     bool isConsistent = m_collaborativeComponent->run_collaborative_pose_estimation();
     if (!isConsistent) 
     {

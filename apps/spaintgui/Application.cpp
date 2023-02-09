@@ -100,10 +100,10 @@ bool Application::run()
 
     // Take action as relevant based on the current input state.
     process_input();
-
     // If the application is unpaused, process a new frame.
     if(!m_paused)
     {
+	  std::cout << "in m_paused i: " << i << "\n";
       // Run the main section of the pipeline.
       const std::set<std::string> scenesProcessed = m_pipeline->run_main_section();
       if(!scenesProcessed.empty())
@@ -120,7 +120,7 @@ bool Application::run()
         break;
       }
     }
-	sleep(1);
+	usleep(500000);
     // Render the scene.
     /*
     m_renderer->render(m_fracWindowPos, m_renderFiducials);
