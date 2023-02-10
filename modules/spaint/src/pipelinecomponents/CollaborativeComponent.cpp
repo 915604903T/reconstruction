@@ -177,7 +177,6 @@ bool CollaborativeComponent::run_collaborative_pose_estimation()
 
     if(m_reconstructionIsConsistent) std::cout << "The reconstruction became consistent at frame: " << m_frameIndex << '\n';
   }
-  std::cout << "m_reconstructionIsConsistent: " << m_reconstructionIsConsistent << "\n";
   // If the reconstruction is consistent and we're stopping at the first consistent reconstruction:
   if(m_reconstructionIsConsistent && m_stopAtFirstConsistentReconstruction)
   {
@@ -194,7 +193,6 @@ bool CollaborativeComponent::run_collaborative_pose_estimation()
 
   ++m_frameIndex;
 
-  std::cout << "this is m_reconstructionIsConsistent: " << m_reconstructionIsConsistent << "\n";
   return m_reconstructionIsConsistent;
   /*
   bool fusionMayStillRun = update_trajectories();
@@ -537,7 +535,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
     // Make OpenCV copies of the synthetic images we're trying to relocalise (these may be needed later).
     cv::Mat3b cvSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
     cv::Mat1b cvSourceDepth = OpenCVUtil::make_greyscale_image(depth->GetData(MEMORYDEVICE_CPU), depth->noDims.x, depth->noDims.y, OpenCVUtil::ROW_MAJOR, 100.0f);
-	cv::imwrite("source.png", cvSourceRGB);
+	// cv::imwrite("source.png", cvSourceRGB);
   #if DEBUGGING
     // If we're debugging, show the synthetic images of the source scene to the user.
     cv::imshow("Source Depth", cvSourceDepth);
@@ -573,8 +571,8 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       // Make OpenCV copies of the synthetic images of the target scene.
       cv::Mat3b cvTargetRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
       cv::Mat1b cvTargetDepth = OpenCVUtil::make_greyscale_image(depth->GetData(MEMORYDEVICE_CPU), depth->noDims.x, depth->noDims.y, OpenCVUtil::ROW_MAJOR, 100.0f);
-	  cv::imwrite("target.png", cvTargetRGB);
-	  std::cout << "save target png\n";
+	  // cv::imwrite("target.png", cvTargetRGB);
+	  // std::cout << "save target png\n";
     #if DEBUGGING
       // If we're debugging, show the synthetic images of the target scene to the user.
       cv::imshow("Target RGB", cvTargetRGB);
@@ -708,7 +706,6 @@ void CollaborativeComponent::try_schedule_relocalisation()
 
     // If an existing relocalisation attempt is in progress, early out.
     // if(m_bestCandidate) return;
-	std::cout << "try_schedule_relocalisation: " << "m_bestCandidates.size() " << m_bestCandidates.size() << " bestCandidateMaxCount " << bestCandidateMaxCount << "\n";	
     if (m_bestCandidates.size()>=bestCandidateMaxCount) {
       m_readyToRelocalise.notify_one();
       return;
