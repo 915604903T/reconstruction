@@ -334,7 +334,7 @@ bool CollaborativeComponent::is_verified(const CollaborativeRelocalisation& cand
   // FIXME: This is a bit hacky - we might want to improve this in the future.
   const float depthDiffThreshold = m_mode == CM_LIVE ? 10.0f : 5.0f;
 
-  return candidate.m_meanDepthDiff(0) < depthDiffThreshold && candidate.m_targetValidFraction >= 0.5f;
+  return candidate.m_meanDepthDiff(0) < 2.5f && candidate.m_targetValidFraction >= 0.75f;
 #else
   return true;
 #endif
