@@ -334,7 +334,7 @@ bool CollaborativeComponent::is_verified(const CollaborativeRelocalisation& cand
   // FIXME: This is a bit hacky - we might want to improve this in the future.
   const float depthDiffThreshold = m_mode == CM_LIVE ? 10.0f : 5.0f;
 
-  return candidate.m_meanDepthDiff(0) < depthDiffThreshold && candidate.m_targetValidFraction >= 0.5f;
+  return candidate.m_meanDepthDiff(0) < 2.5f && candidate.m_targetValidFraction >= 0.75f;
 #else
   return true;
 #endif
@@ -487,6 +487,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
   }else {
     std::cout << "set " << tid << " to cpu set \n";
   }
+  int run_times = 0;
   while(!m_stopRelocalisationThread)
   {
     // Wait for a relocalisation to be scheduled.
@@ -501,10 +502,11 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       }
     }
     m_mutex.lock();
+	run_times++; 
     auto now_bestCandidate = m_bestCandidates.front();
     m_bestCandidates.pop_front();
     m_mutex.unlock();
-    std::cout << tid <<" : Attempting to relocalise frame " << now_bestCandidate->m_frameIndexJ << " of " << now_bestCandidate->m_sceneJ << " against " << now_bestCandidate->m_sceneI << "...";
+    std::cout << tid <<" : " << run_times << " Attempting to relocalise frame " << now_bestCandidate->m_frameIndexJ << " of " << now_bestCandidate->m_sceneJ << " against " << now_bestCandidate->m_sceneI << "...";
     // std::cout << "Attempting to relocalise frame " << m_bestCandidate->m_frameIndexJ << " of " << m_bestCandidate->m_sceneJ << " against " << m_bestCandidate->m_sceneI << "...";
 
     // Render synthetic images of the source scene from the relevant pose and copy them across to the GPU for use by the relocaliser.
@@ -714,7 +716,6 @@ void CollaborativeComponent::try_schedule_relocalisation()
     // Randomly generate a list of candidate relocalisations.
     const size_t desiredCandidateCount = 10;
     std::list<CollaborativeRelocalisation> candidates = generate_random_candidates(desiredCandidateCount);
-	std::cout << "this is candidates length: " << candidates.size() << "\n";
 #else
     // Generate the frames from the source scene in order, for evaluation purposes.
     std::list<CollaborativeRelocalisation> candidates = generate_sequential_candidate();
