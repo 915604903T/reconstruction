@@ -55,13 +55,14 @@ using namespace tvgutil;
 
 //#################### CONSTRUCTORS ####################
 
-Application::Application(const MultiScenePipeline_Ptr& pipeline, bool renderFiducials)
+Application::Application(const MultiScenePipeline_Ptr& pipeline, const std::map<std::string, std::string> &sceneID2Name, bool renderFiducials)
 : m_activeSubwindowIndex(0),
   m_batchModeEnabled(false),
   m_commandManager(10),
   m_pauseBetweenFrames(true),
   m_paused(true),
   m_pipeline(pipeline),
+  m_sceneID2Name(sceneID2Name),
   m_renderFiducials(renderFiducials),
   m_saveModelsOnExit(false),
   m_usePoseMirroring(true),
@@ -1037,7 +1038,8 @@ void Application::save_mesh() const
     }
 
     // Save the mesh to disk.
-    const boost::filesystem::path meshPath = dir / (meshBaseName + "_" + sceneID + ".ply");
+    // const boost::filesystem::path meshPath = dir / (meshBaseName + "_" + sceneID + ".ply");
+    const boost::filesystem::path meshPath = m_sceneID2Name[sceneID] + ".ply";
     std::cout << "Saving mesh to: " << meshPath << '\n';
     mesh->WritePLY(meshPath.string().c_str());
   }

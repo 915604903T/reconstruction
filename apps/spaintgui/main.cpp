@@ -1057,7 +1057,7 @@ try
 #endif
 
     // Configure and run the application.
-    Application app(pipeline, args.renderFiducials);
+    Application app(pipeline, sceneID2Name, args.renderFiducials);
     if(args.batch) app.set_batch_mode_enabled(true);
     if(args.runServer) app.set_server_mode_enabled(true);
     app.set_save_memory_usage(args.profileMemory);
