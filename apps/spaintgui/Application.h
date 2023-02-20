@@ -6,6 +6,8 @@
 #ifndef H_SPAINTGUI_APPLICATION
 #define H_SPAINTGUI_APPLICATION
 
+#include <map>
+
 #include <tvgutil/boost/WrappedAsio.h>
 #include <boost/function.hpp>
 
@@ -105,6 +107,9 @@ private:
   /** The stream of commands being sent from the voice command server. */
   boost::asio::ip::tcp::iostream m_voiceCommandStream;
 
+  /** scene name and scene ID map*/
+  std::map<std::string, std::string> m_sceneID2Name;
+
   //#################### CONSTRUCTORS ####################
 public:
   /**
@@ -113,7 +118,9 @@ public:
    * \param pipeline        The multi-scene pipeline that the application should use.
    * \param renderFiducials Whether or not to render the fiducials (if any) that have been detected in the 3D scene.
    */
-  Application(const MultiScenePipeline_Ptr& pipeline, bool renderFiducials = false);
+  Application(const MultiScenePipeline_Ptr& pipeline, 
+              const std::map<std::string, std::string> &sceneID2Name,
+              bool renderFiducials = false);
 
   //#################### PUBLIC MEMBER FUNCTIONS ####################
 public:
@@ -356,3 +363,4 @@ private:
 };
 
 #endif
+
