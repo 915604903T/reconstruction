@@ -1026,6 +1026,7 @@ void Application::save_mesh() const
       // Next, transform each triangle using the relative transform determined above.
       const Matrix4f transform = *relativeTransform;
       Triangle *trianglesData = triangles->GetData(MEMORYDEVICE_CPU);
+	  std::cout << "this is transform:\n" << transform << "\n";
       for(size_t triangleIdx = 0; triangleIdx < mesh->noTotalTriangles; ++triangleIdx)
       {
         trianglesData[triangleIdx].p0  = transform * trianglesData[triangleIdx].p0;
