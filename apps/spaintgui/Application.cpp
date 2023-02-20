@@ -973,12 +973,17 @@ void Application::save_mesh() const
   const std::vector<std::string> sceneIDs = model->get_scene_ids();
 
   // Determine the (base) filename to use for the mesh, based on either the experiment tag (if specified) or the current timestamp (otherwise).
-  std::string meshBaseName = settings->get_first_value<std::string>("experimentTag", "spaint-" + TimeUtil::get_iso_timestamp());
+  // std::string meshBaseName = settings->get_first_value<std::string>("experimentTag", "spaint-" + TimeUtil::get_iso_timestamp());
 
   // Determine the directory into which to save the meshes, and make sure that it exists.
+  /* 
   boost::filesystem::path dir = find_subdir_from_executable("meshes");
   if(sceneIDs.size() > 1) dir = dir / meshBaseName;
   boost::filesystem::create_directories(dir);
+  */
+  if (!(model->get_collaborative_pose_optimiser()->isSuccess())) {
+    return;
+  }
 
   // Mesh each scene independently.
   for(size_t sceneIdx = 0; sceneIdx < sceneIDs.size(); ++sceneIdx)
