@@ -119,7 +119,7 @@ public:
    * \param renderFiducials Whether or not to render the fiducials (if any) that have been detected in the 3D scene.
    */
   Application(const MultiScenePipeline_Ptr& pipeline, 
-              const std::map<std::string, std::string> &sceneID2Name
+              const std::map<std::string, std::string> &sceneID2Name,
               bool renderFiducials = false);
 
   //#################### PUBLIC MEMBER FUNCTIONS ####################

@@ -1039,7 +1039,8 @@ void Application::save_mesh() const
 
     // Save the mesh to disk.
     // const boost::filesystem::path meshPath = dir / (meshBaseName + "_" + sceneID + ".ply");
-    const boost::filesystem::path meshPath = m_sceneID2Name[sceneID] + ".ply";
+    auto sceneName = m_sceneID2Name.find(sceneID);
+    const boost::filesystem::path meshPath = sceneName->second + ".ply";
     std::cout << "Saving mesh to: " << meshPath << '\n';
     mesh->WritePLY(meshPath.string().c_str());
   }
