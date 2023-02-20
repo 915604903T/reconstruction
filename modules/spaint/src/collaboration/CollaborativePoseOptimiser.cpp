@@ -116,6 +116,12 @@ void CollaborativePoseOptimiser::terminate()
   save_global_poses();
 }
 
+bool CollaborativePoseOptimiser::isSuccess() 
+{
+  if(m_estimatedGlobalPoses.empty()) return false;
+  return true;
+}
+
 boost::optional<SE3Pose> CollaborativePoseOptimiser::try_get_estimated_global_pose(const std::string& sceneID) const
 {
   boost::lock_guard<boost::mutex> lock(m_mutex);

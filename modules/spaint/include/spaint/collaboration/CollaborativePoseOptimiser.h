@@ -127,6 +127,11 @@ public:
   void terminate();
 
   /**
+   * \brief Terminates the pose graph optimiser.
+   */
+  bool isSuccess();
+
+  /**
    * \brief Attempts to get the estimated global pose (if any) of the specified scene.
    *
    * \param sceneID The scene whose estimated global pose we want to get.
