@@ -116,7 +116,7 @@ void CollaborativePoseOptimiser::terminate()
   save_global_poses();
 }
 
-bool CollaborativePoseOptimiser::isSuccess() 
+bool CollaborativePoseOptimiser::isSuccess() const
 {
   if(m_estimatedGlobalPoses.empty()) return false;
   return true;

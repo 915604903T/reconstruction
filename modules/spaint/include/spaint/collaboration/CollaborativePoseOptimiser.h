@@ -129,7 +129,7 @@ public:
   /**
    * \brief Terminates the pose graph optimiser.
    */
-  bool isSuccess();
+  bool isSuccess() const;
 
   /**
    * \brief Attempts to get the estimated global pose (if any) of the specified scene.
