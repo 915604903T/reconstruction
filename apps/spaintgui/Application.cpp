@@ -155,7 +155,7 @@ bool Application::run()
   if(m_saveMeshOnExit) save_mesh();
 
   // If desired, save a model of each scene before the application terminates.
-  if(m_saveModelsOnExit) save_models();
+  // if(m_saveModelsOnExit) save_models();
 
   return true;
 }
@@ -986,6 +986,8 @@ void Application::save_mesh() const
   }
 
   // Mesh each scene independently.
+  std::vector<std::string> mergeFilesName;
+  std::vector<std::string> filesRootName;
   for(size_t sceneIdx = 0; sceneIdx < sceneIDs.size(); ++sceneIdx)
   {
     const std::string& sceneID = sceneIDs[sceneIdx];
@@ -1045,10 +1047,21 @@ void Application::save_mesh() const
     // Save the mesh to disk.
     // const boost::filesystem::path meshPath = dir / (meshBaseName + "_" + sceneID + ".ply");
     auto sceneName = m_sceneID2Name.find(sceneID);
-    const boost::filesystem::path meshPath = sceneName->second + ".ply";
+    const boost::filesystem::path meshPath = sceneName->second + "-" + TimeUtil::get_iso_timestamp() + ".ply";
+    mergeFilesName.push_back(meshPath.string());
     std::cout << "Saving mesh to: " << meshPath << '\n';
     mesh->WritePLY(meshPath.string().c_str());
   }
+  std::string worldScene = m_sceneID2Name.find("World")->second;
+  std::string localScene = m_sceneID2Name.find("Local1")->second;
+  std::string outputFile = worldScene + "-" + localScene + ".ply";
+  std::cout << "execlp python program\n";
+  execlp("python", "python", "mergeMesh.py", 
+    "--file1", mergeFilesName[0],
+		"--file2", mergeFilesName[1],
+		"--pose", "worldPose.txt",
+		"--output", outputFile, NULL);
+  std::cout << "after execlp python program\n";
 }
 
 void Application::save_models() const
