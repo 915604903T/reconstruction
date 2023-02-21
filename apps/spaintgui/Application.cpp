@@ -1064,11 +1064,13 @@ void Application::save_mesh() const
   }
   if (pid == 0) {
     std::cout << "fork python program " << mergeFilesName[0] << " " << mergeFilesName[1] << "\n";
-	execlp("python", "python", "mergeMesh.py",
-		"--file1", mergeFilesName[0].c_str(),
-        "--file2", mergeFilesName[1].c_str(),
-        "--pose", "worldPose.txt",
-        "--output", outputFile.c_str(), NULL);
+	char *argv[] = {"python3","mergeMesh.py", 
+					"--file1", const_cast<char*>(mergeFilesName[0].c_str()),
+					"--file2",const_cast<char*>(mergeFilesName[1].c_str()),
+					"--pose", "worldPose.txt",
+					"--output", const_cast<char*>(outputFile.c_str()),
+					NULL};
+	execvp("python3", argv);
 	std::cout << "after execlp python program\n";	
   }else {
 	std::cout << "this is origin program\n";
