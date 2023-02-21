@@ -6,7 +6,8 @@
 #include "Application.h"
 using namespace tvginput;
 #include <time.h>  
-
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -989,7 +990,7 @@ void Application::save_mesh() const
   std::vector<std::string> mergeFilesName;
   std::vector<std::string> filesRootName;
   for(size_t sceneIdx = 0; sceneIdx < sceneIDs.size(); ++sceneIdx)
-  {
+  { 
     const std::string& sceneID = sceneIDs[sceneIdx];
     std::cout << "Meshing " << sceneID << " scene.\n";
     SpaintVoxelScene_CPtr scene = model->get_slam_state(sceneID)->get_voxel_scene();
@@ -1032,6 +1033,7 @@ void Application::save_mesh() const
 
       // Next, transform each triangle using the relative transform determined above.
       const Matrix4f transform = *relativeTransform;
+	  std::cout << "transform:\n" << transform << "\n";
       Triangle *trianglesData = triangles->GetData(MEMORYDEVICE_CPU);
       for(size_t triangleIdx = 0; triangleIdx < mesh->noTotalTriangles; ++triangleIdx)
       {
@@ -1055,13 +1057,25 @@ void Application::save_mesh() const
   std::string worldScene = m_sceneID2Name.find("World")->second;
   std::string localScene = m_sceneID2Name.find("Local1")->second;
   std::string outputFile = worldScene + "-" + localScene + ".ply";
-  std::cout << "execlp python program\n";
-  execlp("python", "python", "mergeMesh.py", 
-    "--file1", mergeFilesName[0],
-		"--file2", mergeFilesName[1],
-		"--pose", "worldPose.txt",
-		"--output", outputFile, NULL);
-  std::cout << "after execlp python program\n";
+  pid_t pid = fork();
+  if (pid < 0) {
+    printf("error create merge program\n");
+    exit(0);
+  }
+  if (pid == 0) {
+    std::cout << "fork python program " << mergeFilesName[0] << " " << mergeFilesName[1] << "\n";
+	execlp("python", "python", "mergeMesh.py",
+		"--file1", mergeFilesName[0].c_str(),
+        "--file2", mergeFilesName[1].c_str(),
+        "--pose", "worldPose.txt",
+        "--output", outputFile.c_str(), NULL);
+	std::cout << "after execlp python program\n";	
+  }else {
+	std::cout << "this is origin program\n";
+	int status;
+	waitpid(pid, &status, 0);
+	std::cout << "after waitpid\n";
+  }
 }
 
 void Application::save_models() const
