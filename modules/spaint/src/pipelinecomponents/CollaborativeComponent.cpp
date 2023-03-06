@@ -10,6 +10,7 @@ using namespace itmx;
 
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <cmath>
 
 #include <algorithm>
 
@@ -476,6 +477,18 @@ void CollaborativeComponent::output_results() const
   }
 }
 
+double getPSNR(const cv::Mat& depthImage1, const cv::Mat& depthImage2)
+{
+  cv::Mat diff;
+  cv::absdiff(depthImage1, depthImage2, diff);
+  diff = diff.mul(diff);
+  double mse = cv::mean(diff)[0];
+
+  double max_pixel_value = 255.0;
+  double psnr = 10.0 * std::log10((max_pixel_value * max_pixel_value) / mse);
+  return psnr;
+}
+
 double getSSIM(const cv::Mat& depthImage1, const cv::Mat& depthImage2)
 {
     const double C1 = 6.5025, C2 = 58.5225;
@@ -619,19 +632,12 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       cv::Mat1b cvTargetDepth = OpenCVUtil::make_greyscale_image(depth->GetData(MEMORYDEVICE_CPU), depth->noDims.x, depth->noDims.y, OpenCVUtil::ROW_MAJOR, 100.0f);
 	  // cv::imwrite("target.png", cvTargetRGB);
 	  // std::cout << "save target png\n";
-    double ssimValue = getSSIM(cvTargetDepth, cvSourceDepth);
-    std::cout << "ssimValue: " << ssimValue << "\n";
-    if (ssimValue>0.7) {
-      verified = true;
-    }else {
-      verified = false;
-    }
+
     #if DEBUGGING
       // If we're debugging, show the synthetic images of the target scene to the user.
       cv::imshow("Target RGB", cvTargetRGB);
       cv::imshow("Target Depth", cvTargetDepth);
     #endif
-    /*
       // Compute a binary mask showing which pixels are valid in both the source and target depth images.
       cv::Mat cvSourceMask;
       cv::inRange(cvSourceDepth, cv::Scalar(0,0,0), cv::Scalar(0,0,0), cvSourceMask);
@@ -667,7 +673,12 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       // Decide whether or not to verify the relocalisation, based on the average depth difference and the fraction of the target depth image that is valid.
       // verified = is_verified(*m_bestCandidate);
       verified = is_verified(*now_bestCandidate);
-    */
+      if (verified) {
+          double ssimValue = getSSIM(cvTargetDepth, cvSourceDepth);
+          std::cout << "ssimValue: " << ssimValue << "\n";
+          double psnr = getPSNR(cvTargetDepth, cvSourceDepth);
+          std::cout << "psnr: " << psnr << "\n";
+      }
 #else
       // If we didn't build with OpenCV, we can't do any verification, so just mark the relocalisation as verified and hope for the best.
       verified = true;
