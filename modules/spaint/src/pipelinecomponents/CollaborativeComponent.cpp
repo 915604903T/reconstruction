@@ -10,8 +10,19 @@ using namespace itmx;
 
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <cmath>
 
 #include <algorithm>
+
+#include <opencv2/core.hpp>
+#include <opencv2/features2d.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/xfeatures2d.hpp>
+
+using namespace std;
+using namespace cv;
+using namespace cv::xfeatures2d;
 
 #include <boost/bind.hpp>
 using boost::bind;
@@ -334,7 +345,8 @@ bool CollaborativeComponent::is_verified(const CollaborativeRelocalisation& cand
   // FIXME: This is a bit hacky - we might want to improve this in the future.
   const float depthDiffThreshold = m_mode == CM_LIVE ? 10.0f : 5.0f;
 
-  return candidate.m_meanDepthDiff(0) < 2.5f && candidate.m_targetValidFraction >= 0.75f;
+  return candidate.m_meanDepthDiff(0) < depthDiffThreshold && candidate.m_targetValidFraction >= 0.5f;
+  // return candidate.m_meanDepthDiff(0) < 2.5f && candidate.m_targetValidFraction >= 0.75f;
 #else
   return true;
 #endif
@@ -476,6 +488,18 @@ void CollaborativeComponent::output_results() const
   }
 }
 
+double getPSNR(const cv::Mat& depthImage1, const cv::Mat& depthImage2)
+{
+  cv::Mat diff;
+  cv::absdiff(depthImage1, depthImage2, diff);
+  diff = diff.mul(diff);
+  double mse = cv::mean(diff)[0];
+
+  double max_pixel_value = 255.0;
+  double psnr = 10.0 * std::log10((max_pixel_value * max_pixel_value) / mse);
+  return psnr;
+}
+
 double getSSIM(const cv::Mat& depthImage1, const cv::Mat& depthImage2)
 {
     const double C1 = 6.5025, C2 = 58.5225;
@@ -532,6 +556,9 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
     std::cout << "set " << tid << " to cpu set \n";
   }
   int run_times = 0;
+  int save_cnt1 = 0;
+  int save_cnt2 = 0;
+  int save_cnt3 = 0;
   while(!m_stopRelocalisationThread)
   {
     // Wait for a relocalisation to be scheduled.
@@ -546,7 +573,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       }
     }
     m_mutex.lock();
-	run_times++; 
+	  run_times++; 
     auto now_bestCandidate = m_bestCandidates.front();
     m_bestCandidates.pop_front();
     m_mutex.unlock();
@@ -619,19 +646,12 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       cv::Mat1b cvTargetDepth = OpenCVUtil::make_greyscale_image(depth->GetData(MEMORYDEVICE_CPU), depth->noDims.x, depth->noDims.y, OpenCVUtil::ROW_MAJOR, 100.0f);
 	  // cv::imwrite("target.png", cvTargetRGB);
 	  // std::cout << "save target png\n";
-    double ssimValue = getSSIM(cvTargetDepth, cvSourceDepth);
-    std::cout << "ssimValue: " << ssimValue << "\n";
-    if (ssimValue>0.7) {
-      verified = true;
-    }else {
-      verified = false;
-    }
+
     #if DEBUGGING
       // If we're debugging, show the synthetic images of the target scene to the user.
       cv::imshow("Target RGB", cvTargetRGB);
       cv::imshow("Target Depth", cvTargetDepth);
     #endif
-    /*
       // Compute a binary mask showing which pixels are valid in both the source and target depth images.
       cv::Mat cvSourceMask;
       cv::inRange(cvSourceDepth, cv::Scalar(0,0,0), cv::Scalar(0,0,0), cvSourceMask);
@@ -667,7 +687,91 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       // Decide whether or not to verify the relocalisation, based on the average depth difference and the fraction of the target depth image that is valid.
       // verified = is_verified(*m_bestCandidate);
       verified = is_verified(*now_bestCandidate);
-    */
+      if (verified) {
+		  printf("save cnt: %d\n", save_cnt1);
+          cv::imwrite("verifiedSource"+std::to_string(save_cnt1)+".png", cvSourceRGB);
+          cv::imwrite("verifiedTarget"+std::to_string(save_cnt1)+".png", cvTargetRGB);
+          cv::imwrite("verifiedSourcedep"+std::to_string(save_cnt1)+".png", cvSourceDepth);
+          cv::imwrite("verifiedTargetdep"+std::to_string(save_cnt1)+".png", cvTargetDepth);
+          save_cnt1++;
+      }
+      
+	  double ssimValue = getSSIM(cvTargetRGB, cvSourceRGB);
+	  double ssimValuedepth = getSSIM(cvTargetDepth, cvSourceDepth);
+      if (verified)
+		  std::cout << "ssimValue: " << ssimValue << "depth: " << ssimValuedepth << "\n";
+      double psnr = getPSNR(cvTargetRGB, cvSourceRGB);
+    if (verified)
+	  std::cout << "psnr: " << psnr << "\n";
+	  
+
+   //-- Step 1: Detect the keypoints using SURF Detector, compute the descriptors
+  int minHessian = 400;
+  Ptr<SURF> detector = SURF::create();
+  detector->setHessianThreshold(minHessian);
+  std::vector<KeyPoint> keypoints_1, keypoints_2;
+  Mat descriptors_1, descriptors_2;
+  detector->detectAndCompute( cvSourceRGB, Mat(), keypoints_1, descriptors_1 );
+  detector->detectAndCompute( cvTargetRGB, Mat(), keypoints_2, descriptors_2 );
+
+	FlannBasedMatcher matcher;
+  std::vector< DMatch > matches;
+  matcher.match( descriptors_1, descriptors_2, matches ); //特征描述子匹配
+
+	//找出最优特征点
+	double max_dist = 0; double min_dist = 1000;
+  //-- Quick calculation of max and min distances between keypoints
+  for( int i = 0; i < descriptors_1.rows; i++ )
+  { double dist = matches[i].distance;
+    if( dist < min_dist ) min_dist = dist;
+    if( dist > max_dist ) max_dist = dist;
+  }
+
+  // printf("-- Max dist : %f \n", max_dist );
+  // printf("-- Min dist : %f \n", min_dist );
+
+	std::vector< DMatch > good_matches;
+	for( int i = 0; i < descriptors_1.rows; i++ )
+  { if( matches[i].distance <= max(1.5*min_dist, 0.01) )
+    { good_matches.push_back( matches[i]); }
+  }
+	if (verified)
+  std::cout << "good_matches: " << good_matches.size() << "\n";
+    
+  detector->detectAndCompute( cvSourceDepth, Mat(), keypoints_1, descriptors_1 );
+  detector->detectAndCompute( cvTargetDepth, Mat(), keypoints_2, descriptors_2 );
+  matcher.match( descriptors_1, descriptors_2, matches ); //特征描述子匹配
+  //找出最优特征点
+  max_dist = 0; min_dist = 100;
+  //-- Quick calculation of max and min distances between keypoints
+  for( int i = 0; i < descriptors_1.rows; i++ )
+  { double dist = matches[i].distance;
+    if( dist < min_dist ) min_dist = dist;
+    if( dist > max_dist ) max_dist = dist;
+  }
+  // printf("-- depth Max dist : %f \n", max_dist );
+  // printf("-- depth Min dist : %f \n", min_dist );
+  std::vector< DMatch > depth_matches;
+	for( int i = 0; i < descriptors_1.rows; i++ )
+  { if( matches[i].distance <= max(1.5*min_dist, 0.01) )
+    { depth_matches.push_back( matches[i]); }
+  }
+	if (verified)
+  std::cout << "depth_matches: " << depth_matches.size() << "\n";
+
+  /*
+  if (good_matches.size()>100) {
+	printf("goodmatch save cnt: %d\n", save_cnt3);
+	std::cout << "good_matches: " << good_matches.size() << "\n";
+	printf("ssim: %f\n", ssimValue);
+	printf("ssim depth: %f\n", ssimValuedepth);
+	cv::imwrite("flannSource"+std::to_string(save_cnt3)+".png", cvSourceRGB);
+    cv::imwrite("flannTarget"+std::to_string(save_cnt3)+".png", cvTargetRGB);
+    cv::imwrite("flanndepSource"+std::to_string(save_cnt3)+".png", cvSourceDepth);
+    cv::imwrite("flanndepTarget"+std::to_string(save_cnt3)+".png", cvTargetDepth);
+	save_cnt3++;
+  }
+*/
 #else
       // If we didn't build with OpenCV, we can't do any verification, so just mark the relocalisation as verified and hope for the best.
       verified = true;
@@ -833,3 +937,4 @@ bool CollaborativeComponent::update_trajectories()
 }
 
 }
+
