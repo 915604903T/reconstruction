@@ -476,6 +476,50 @@ void CollaborativeComponent::output_results() const
   }
 }
 
+double getSSIM(const cv::Mat& depthImage1, const cv::Mat& depthImage2)
+{
+    const double C1 = 6.5025, C2 = 58.5225;
+    const int d = CV_32F;
+ 
+    cv::Mat image1, image2;
+    depthImage1.convertTo(image1, d);
+    depthImage2.convertTo(image2, d);
+ 
+    cv::Mat image1Squared = image1.mul(image1);
+    cv::Mat image2Squared = image2.mul(image2);
+    cv::Mat image1image2 = image1.mul(image2);
+ 
+    cv::Mat mu1, mu2;
+    cv::GaussianBlur(image1, mu1, cv::Size(11, 11), 1.5);
+    cv::GaussianBlur(image2, mu2, cv::Size(11, 11), 1.5);
+ 
+    cv::Mat mu1Squared = mu1.mul(mu1);
+    cv::Mat mu2Squared = mu2.mul(mu2);
+    cv::Mat mu1mu2 = mu1.mul(mu2);
+ 
+    cv::Mat sigma1Squared, sigma2Squared, sigma12;
+    cv::GaussianBlur(image1Squared, sigma1Squared, cv::Size(11, 11), 1.5);
+    sigma1Squared -= mu1Squared;
+    cv::GaussianBlur(image2Squared, sigma2Squared, cv::Size(11, 11), 1.5);
+    sigma2Squared -= mu2Squared;
+    cv::GaussianBlur(image1image2, sigma12, cv::Size(11, 11), 1.5);
+    sigma12 -= mu1mu2;
+ 
+    cv::Mat t1, t2, t3;
+    t1 = 2 * mu1mu2 + C1;
+    t2 = 2 * sigma12 + C2;
+    t3 = t1.mul(t2);
+ 
+    t1 = mu1Squared + mu2Squared + C1;
+    t2 = sigma1Squared + sigma2Squared + C2;
+    t1 = t1.mul(t2);
+ 
+    cv::Mat ssimMap;
+    cv::divide(t3, t1, ssimMap);
+    cv::Scalar mssim = cv::mean(ssimMap);
+    return mssim[0];
+}
+
 // void CollaborativeComponent::run_relocalisation()
 void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
 {
@@ -665,50 +709,6 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
     // FIXME: This is a bit hacky - we might want to improve this in the future.
     if(m_mode == CM_LIVE) boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
   }
-}
-
-double getSSIM(const cv::Mat& depthImage1, const cv::Mat& depthImage2)
-{
-    const double C1 = 6.5025, C2 = 58.5225;
-    const int d = CV_32F;
- 
-    cv::Mat image1, image2;
-    depthImage1.convertTo(image1, d);
-    depthImage2.convertTo(image2, d);
- 
-    cv::Mat image1Squared = image1.mul(image1);
-    cv::Mat image2Squared = image2.mul(image2);
-    cv::Mat image1image2 = image1.mul(image2);
- 
-    cv::Mat mu1, mu2;
-    cv::GaussianBlur(image1, mu1, cv::Size(11, 11), 1.5);
-    cv::GaussianBlur(image2, mu2, cv::Size(11, 11), 1.5);
- 
-    cv::Mat mu1Squared = mu1.mul(mu1);
-    cv::Mat mu2Squared = mu2.mul(mu2);
-    cv::Mat mu1mu2 = mu1.mul(mu2);
- 
-    cv::Mat sigma1Squared, sigma2Squared, sigma12;
-    cv::GaussianBlur(image1Squared, sigma1Squared, cv::Size(11, 11), 1.5);
-    sigma1Squared -= mu1Squared;
-    cv::GaussianBlur(image2Squared, sigma2Squared, cv::Size(11, 11), 1.5);
-    sigma2Squared -= mu2Squared;
-    cv::GaussianBlur(image1image2, sigma12, cv::Size(11, 11), 1.5);
-    sigma12 -= mu1mu2;
- 
-    cv::Mat t1, t2, t3;
-    t1 = 2 * mu1mu2 + C1;
-    t2 = 2 * sigma12 + C2;
-    t3 = t1.mul(t2);
- 
-    t1 = mu1Squared + mu2Squared + C1;
-    t2 = sigma1Squared + sigma2Squared + C2;
-    t1 = t1.mul(t2);
- 
-    cv::Mat ssimMap;
-    cv::divide(t3, t1, ssimMap);
-    cv::Scalar mssim = cv::mean(ssimMap);
-    return mssim[0];
 }
 
 void CollaborativeComponent::score_candidates(std::list<CollaborativeRelocalisation>& candidates) const
