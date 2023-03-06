@@ -352,11 +352,6 @@ bool CollaborativeComponent::is_verified(const CollaborativeRelocalisation& cand
 #endif
 }
 
-bool verifying(cv::Scalar meanDepthDiff, float targetValidFraction)
-{
-  return meanDepthDiff(0) < 5.0f && targetValidFraction >= 0.5f;
-}
-
 void CollaborativeComponent::output_results() const
 {
   int good = 0, bad = 0, unknown = 0;
@@ -505,6 +500,50 @@ double getPSNR(const cv::Mat& depthImage1, const cv::Mat& depthImage2)
   return psnr;
 }
 
+double getSSIM(const cv::Mat& depthImage1, const cv::Mat& depthImage2)
+{
+    const double C1 = 6.5025, C2 = 58.5225;
+    const int d = CV_32F;
+ 
+    cv::Mat image1, image2;
+    depthImage1.convertTo(image1, d);
+    depthImage2.convertTo(image2, d);
+ 
+    cv::Mat image1Squared = image1.mul(image1);
+    cv::Mat image2Squared = image2.mul(image2);
+    cv::Mat image1image2 = image1.mul(image2);
+ 
+    cv::Mat mu1, mu2;
+    cv::GaussianBlur(image1, mu1, cv::Size(11, 11), 1.5);
+    cv::GaussianBlur(image2, mu2, cv::Size(11, 11), 1.5);
+ 
+    cv::Mat mu1Squared = mu1.mul(mu1);
+    cv::Mat mu2Squared = mu2.mul(mu2);
+    cv::Mat mu1mu2 = mu1.mul(mu2);
+ 
+    cv::Mat sigma1Squared, sigma2Squared, sigma12;
+    cv::GaussianBlur(image1Squared, sigma1Squared, cv::Size(11, 11), 1.5);
+    sigma1Squared -= mu1Squared;
+    cv::GaussianBlur(image2Squared, sigma2Squared, cv::Size(11, 11), 1.5);
+    sigma2Squared -= mu2Squared;
+    cv::GaussianBlur(image1image2, sigma12, cv::Size(11, 11), 1.5);
+    sigma12 -= mu1mu2;
+ 
+    cv::Mat t1, t2, t3;
+    t1 = 2 * mu1mu2 + C1;
+    t2 = 2 * sigma12 + C2;
+    t3 = t1.mul(t2);
+ 
+    t1 = mu1Squared + mu2Squared + C1;
+    t2 = sigma1Squared + sigma2Squared + C2;
+    t1 = t1.mul(t2);
+ 
+    cv::Mat ssimMap;
+    cv::divide(t3, t1, ssimMap);
+    cv::Scalar mssim = cv::mean(ssimMap);
+    return mssim[0];
+}
+
 // void CollaborativeComponent::run_relocalisation()
 void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
 {
@@ -650,12 +689,89 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       verified = is_verified(*now_bestCandidate);
       if (verified) {
 		  printf("save cnt: %d\n", save_cnt1);
-          cv::imwrite("verifiedSource"+std::to_string(now_bestCandidate->m_frameIndexJ)+".png", cvSourceRGB);
-          cv::imwrite("verifiedTarget"+std::to_string(now_bestCandidate->m_frameIndexJ)+".png", cvTargetRGB);
-          cv::imwrite("verifiedSourcedep"+std::to_string(now_bestCandidate->m_frameIndexJ)+".png", cvSourceDepth);
-          cv::imwrite("verifiedTargetdep"+std::to_string(now_bestCandidate->m_frameIndexJ)+".png", cvTargetDepth);
+          cv::imwrite("verifiedSource"+std::to_string(save_cnt1)+".png", cvSourceRGB);
+          cv::imwrite("verifiedTarget"+std::to_string(save_cnt1)+".png", cvTargetRGB);
+          cv::imwrite("verifiedSourcedep"+std::to_string(save_cnt1)+".png", cvSourceDepth);
+          cv::imwrite("verifiedTargetdep"+std::to_string(save_cnt1)+".png", cvTargetDepth);
           save_cnt1++;
       }
+      
+	  double ssimValue = getSSIM(cvTargetRGB, cvSourceRGB);
+	  double ssimValuedepth = getSSIM(cvTargetDepth, cvSourceDepth);
+      if (verified)
+		  std::cout << "ssimValue: " << ssimValue << "depth: " << ssimValuedepth << "\n";
+      double psnr = getPSNR(cvTargetRGB, cvSourceRGB);
+    if (verified)
+	  std::cout << "psnr: " << psnr << "\n";
+	  
+
+   //-- Step 1: Detect the keypoints using SURF Detector, compute the descriptors
+  int minHessian = 400;
+  Ptr<SURF> detector = SURF::create();
+  detector->setHessianThreshold(minHessian);
+  std::vector<KeyPoint> keypoints_1, keypoints_2;
+  Mat descriptors_1, descriptors_2;
+  detector->detectAndCompute( cvSourceRGB, Mat(), keypoints_1, descriptors_1 );
+  detector->detectAndCompute( cvTargetRGB, Mat(), keypoints_2, descriptors_2 );
+
+	FlannBasedMatcher matcher;
+  std::vector< DMatch > matches;
+  matcher.match( descriptors_1, descriptors_2, matches ); //特征描述子匹配
+
+	//找出最优特征点
+	double max_dist = 0; double min_dist = 1000;
+  //-- Quick calculation of max and min distances between keypoints
+  for( int i = 0; i < descriptors_1.rows; i++ )
+  { double dist = matches[i].distance;
+    if( dist < min_dist ) min_dist = dist;
+    if( dist > max_dist ) max_dist = dist;
+  }
+
+  // printf("-- Max dist : %f \n", max_dist );
+  // printf("-- Min dist : %f \n", min_dist );
+
+	std::vector< DMatch > good_matches;
+	for( int i = 0; i < descriptors_1.rows; i++ )
+  { if( matches[i].distance <= max(1.5*min_dist, 0.01) )
+    { good_matches.push_back( matches[i]); }
+  }
+	if (verified)
+  std::cout << "good_matches: " << good_matches.size() << "\n";
+    
+  detector->detectAndCompute( cvSourceDepth, Mat(), keypoints_1, descriptors_1 );
+  detector->detectAndCompute( cvTargetDepth, Mat(), keypoints_2, descriptors_2 );
+  matcher.match( descriptors_1, descriptors_2, matches ); //特征描述子匹配
+  //找出最优特征点
+  max_dist = 0; min_dist = 100;
+  //-- Quick calculation of max and min distances between keypoints
+  for( int i = 0; i < descriptors_1.rows; i++ )
+  { double dist = matches[i].distance;
+    if( dist < min_dist ) min_dist = dist;
+    if( dist > max_dist ) max_dist = dist;
+  }
+  // printf("-- depth Max dist : %f \n", max_dist );
+  // printf("-- depth Min dist : %f \n", min_dist );
+  std::vector< DMatch > depth_matches;
+	for( int i = 0; i < descriptors_1.rows; i++ )
+  { if( matches[i].distance <= max(1.5*min_dist, 0.01) )
+    { depth_matches.push_back( matches[i]); }
+  }
+	if (verified)
+  std::cout << "depth_matches: " << depth_matches.size() << "\n";
+
+  /*
+  if (good_matches.size()>100) {
+	printf("goodmatch save cnt: %d\n", save_cnt3);
+	std::cout << "good_matches: " << good_matches.size() << "\n";
+	printf("ssim: %f\n", ssimValue);
+	printf("ssim depth: %f\n", ssimValuedepth);
+	cv::imwrite("flannSource"+std::to_string(save_cnt3)+".png", cvSourceRGB);
+    cv::imwrite("flannTarget"+std::to_string(save_cnt3)+".png", cvTargetRGB);
+    cv::imwrite("flanndepSource"+std::to_string(save_cnt3)+".png", cvSourceDepth);
+    cv::imwrite("flanndepTarget"+std::to_string(save_cnt3)+".png", cvTargetDepth);
+	save_cnt3++;
+  }
+*/
 #else
       // If we didn't build with OpenCV, we can't do any verification, so just mark the relocalisation as verified and hope for the best.
       verified = true;
@@ -666,143 +782,10 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
     // relative transform between the source and target scenes to the pose graph optimiser.
     if(verified)
     {
-      now_bestCandidate->m_relativePose = ORUtils::SE3Pose(result->pose.GetInvM() * now_bestCandidate->m_localPoseJ.GetM());
-      std::string sceneJ = now_bestCandidate->m_sceneJ;
-      int sceneJFrameSize = m_trajectories[sceneJ].size();
-      int tmpIndexJ = now_bestCandidate->m_frameIndexJ;
-      double similarity = 0.0;
-      int count = 0;
-      int successTimes = 0;
-      for (int i = 1; i<=3; i++) {
-        // use rgb render picture to calculate similarity
-        int checkNextFrameIndex = now_bestCandidate->m_frameIndexJ + i*10;
-        if (checkNextFrameIndex < sceneJFrameSize) {
-          printf("this is another frame: %d\n", checkNextFrameIndex);
-          count++;
-          ORUtils::SE3Pose nextFrameLocalPose = m_trajectories[sceneJ][checkNextFrameIndex];
-          ORUtils::SE3Pose nextFramePredPose = ORUtils::SE3Pose(nextFrameLocalPose.GetM() * now_bestCandidate->m_relativePose->GetInvM());
-          m_visualisationGenerator->generate_voxel_visualisation(
-            rgb, slamStateI->get_voxel_scene(), nextFramePredPose, viewI->calib.intrinsics_rgb,
-            renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
-          );
-          cv::Mat3b cvNextFrameTargetRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
-          m_visualisationGenerator->generate_voxel_visualisation(
-            rgb, slamStateJ->get_voxel_scene(), nextFrameLocalPose, viewI->calib.intrinsics_rgb,
-            renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
-          );
-          cv::Mat3b cvNextFrameSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
-          cv::imwrite("Source-"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkNextFrameIndex)+".png", cvNextFrameSourceRGB);
-          cv::imwrite("Target-"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkNextFrameIndex)+".png", cvNextFrameTargetRGB);
-
-          m_visualisationGenerator->generate_depth_from_voxels(
-            depth, slamStateI->get_voxel_scene(), nextFramePredPose, viewI->calib.intrinsics_d,
-            renderStateD, DepthVisualiser::DT_ORTHOGRAPHIC
-          );
-          cv::Mat1b cvNextFrameTargetDepth = OpenCVUtil::make_greyscale_image(depth->GetData(MEMORYDEVICE_CPU), depth->noDims.x, depth->noDims.y, OpenCVUtil::ROW_MAJOR, 100.0f);
-          m_visualisationGenerator->generate_depth_from_voxels(
-            depth, slamStateJ->get_voxel_scene(), nextFrameLocalPose, viewI->calib.intrinsics_d,
-            renderStateD, DepthVisualiser::DT_ORTHOGRAPHIC
-          );
-          cv::Mat1b cvNextFrameSourceDepth = OpenCVUtil::make_greyscale_image(depth->GetData(MEMORYDEVICE_CPU), depth->noDims.x, depth->noDims.y, OpenCVUtil::ROW_MAJOR, 100.0f);
-
-          cv::Mat cvNextSourceMask;
-          cv::inRange(cvNextFrameSourceDepth, cv::Scalar(0,0,0), cv::Scalar(0,0,0), cvNextSourceMask);
-          cv::bitwise_not(cvNextSourceMask, cvNextSourceMask);
-
-          cv::Mat cvNextTargetMask;
-          cv::inRange(cvNextFrameTargetDepth, cv::Scalar(0,0,0), cv::Scalar(0,0,0), cvNextTargetMask);
-          cv::bitwise_not(cvNextTargetMask, cvNextTargetMask);
-
-          cv::Mat cvNextCombinedMask;
-          cv::bitwise_and(cvNextSourceMask, cvNextTargetMask, cvNextCombinedMask);
-
-          // Compute the difference between the source and target depth images, and mask it using the combined mask.
-          cv::Mat cvNextDepthDiff, cvNextMaskedDepthDiff;
-          cv::absdiff(cvNextFrameSourceDepth, cvNextFrameTargetDepth, cvNextDepthDiff);
-          cvNextDepthDiff.copyTo(cvNextMaskedDepthDiff, cvNextCombinedMask);
-
-          // Determine the average depth difference for valid pixels in the source and target depth images.
-          cv::Scalar meanNextDepthDiff = cv::mean(cvNextMaskedDepthDiff);
-
-
-          // Compute the fraction of the target depth image that is valid.
-          float targetNextValidFraction = static_cast<float>(cv::countNonZero(cvNextTargetMask == 255)) / (cvNextTargetMask.size().width * cvNextTargetMask.size().height);       
-
-          if (!verifying(meanNextDepthDiff, targetNextValidFraction)) {
-            printf("next frame Failed!!!!!!!!!\n");
-          }else {
-            successTimes++;
-          }
-        }
-        int checkPrevFrameIndex = now_bestCandidate->m_frameIndexJ - i*10;
-        if (checkPrevFrameIndex >= 0) {
-          count++;
-          printf("this is another frame: %d\n", checkPrevFrameIndex);
-          ORUtils::SE3Pose prevFrameLocalPose = m_trajectories[sceneJ][checkPrevFrameIndex];
-          ORUtils::SE3Pose prevFramePredPose = ORUtils::SE3Pose(prevFrameLocalPose.GetM() * now_bestCandidate->m_relativePose->GetInvM());
-          m_visualisationGenerator->generate_voxel_visualisation(
-            rgb, slamStateI->get_voxel_scene(), prevFramePredPose, viewI->calib.intrinsics_rgb,
-            renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
-          );
-          cv::Mat3b cvPrevFrameTargetRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
-          m_visualisationGenerator->generate_voxel_visualisation(
-            rgb, slamStateJ->get_voxel_scene(), prevFrameLocalPose, viewI->calib.intrinsics_rgb,
-            renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
-          );
-          cv::Mat3b cvPrevFrameSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
-          cv::imwrite("Source"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkPrevFrameIndex)+".png", cvPrevFrameSourceRGB);
-          cv::imwrite("Target"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkPrevFrameIndex)+".png", cvPrevFrameTargetRGB);
-          
-          m_visualisationGenerator->generate_depth_from_voxels(
-            depth, slamStateI->get_voxel_scene(), prevFramePredPose, viewI->calib.intrinsics_d,
-            renderStateD, DepthVisualiser::DT_ORTHOGRAPHIC
-          );
-          cv::Mat1b cvPrevFrameTargetDepth = OpenCVUtil::make_greyscale_image(depth->GetData(MEMORYDEVICE_CPU), depth->noDims.x, depth->noDims.y, OpenCVUtil::ROW_MAJOR, 100.0f);
-          m_visualisationGenerator->generate_depth_from_voxels(
-            depth, slamStateJ->get_voxel_scene(), prevFrameLocalPose, viewI->calib.intrinsics_d,
-            renderStateD, DepthVisualiser::DT_ORTHOGRAPHIC
-          );
-          cv::Mat1b cvPrevFrameSourceDepth = OpenCVUtil::make_greyscale_image(depth->GetData(MEMORYDEVICE_CPU), depth->noDims.x, depth->noDims.y, OpenCVUtil::ROW_MAJOR, 100.0f);
-
-          cv::Mat cvPrevSourceMask;
-          cv::inRange(cvPrevFrameSourceDepth, cv::Scalar(0,0,0), cv::Scalar(0,0,0), cvPrevSourceMask);
-          cv::bitwise_not(cvPrevSourceMask, cvPrevSourceMask);
-
-          cv::Mat cvPrevTargetMask;
-          cv::inRange(cvPrevFrameTargetDepth, cv::Scalar(0,0,0), cv::Scalar(0,0,0), cvPrevTargetMask);
-          cv::bitwise_not(cvPrevTargetMask, cvPrevTargetMask);
-
-          cv::Mat cvPrevCombinedMask;
-          cv::bitwise_and(cvPrevSourceMask, cvPrevTargetMask, cvPrevCombinedMask);
-
-          // Compute the difference between the source and target depth images, and mask it using the combined mask.
-          cv::Mat cvPrevDepthDiff, cvPrevMaskedDepthDiff;
-          cv::absdiff(cvPrevFrameSourceDepth, cvPrevFrameTargetDepth, cvPrevDepthDiff);
-          cvPrevDepthDiff.copyTo(cvPrevMaskedDepthDiff, cvPrevCombinedMask);
-
-          // Determine the average depth difference for valid pixels in the source and target depth images.
-          cv::Scalar meanPrevDepthDiff = cv::mean(cvPrevMaskedDepthDiff);
-
-
-          // Compute the fraction of the target depth image that is valid.
-          float targetPrevValidFraction = static_cast<float>(cv::countNonZero(cvPrevTargetMask == 255)) / (cvPrevTargetMask.size().width * cvPrevTargetMask.size().height);       
-
-          if (!verifying(meanPrevDepthDiff, targetPrevValidFraction)) {
-            printf("Prev frame Failed!!!!!!!!!\n");
-          }else {
-            successTimes++;
-          }
-        }
-      }
       // cjTwi^-1 * cjTwj = wiTcj * cjTwj = wiTwj
-      // now_bestCandidate->m_relativePose = ORUtils::SE3Pose(result->pose.GetInvM() * now_bestCandidate->m_localPoseJ.GetM());
-      double rate = (double)successTimes/(double)count;
-      if (rate > 0.6) {
+      now_bestCandidate->m_relativePose = ORUtils::SE3Pose(result->pose.GetInvM() * now_bestCandidate->m_localPoseJ.GetM());
       m_context->get_collaborative_pose_optimiser()->add_relative_transform_sample(now_bestCandidate->m_sceneI, now_bestCandidate->m_sceneJ, *now_bestCandidate->m_relativePose, m_mode);
       std::cout << "succeeded!" << std::endl;
-      }else {
-         std::cout << "failed :( because next prev not match" << std::endl;
-      }
 #if defined(WITH_OPENCV) && DEBUGGING
       cv::waitKey(1);
 #endif
