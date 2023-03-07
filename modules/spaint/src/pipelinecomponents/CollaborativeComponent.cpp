@@ -648,7 +648,8 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       // Decide whether or not to verify the relocalisation, based on the average depth difference and the fraction of the target depth image that is valid.
       // verified = is_verified(*m_bestCandidate);
       verified = is_verified(*now_bestCandidate);
-      if (verified) {
+      /*
+	  if (verified) {
 		  printf("save cnt: %d\n", save_cnt1);
           cv::imwrite("verifiedSource"+std::to_string(now_bestCandidate->m_frameIndexJ)+".png", cvSourceRGB);
           cv::imwrite("verifiedTarget"+std::to_string(now_bestCandidate->m_frameIndexJ)+".png", cvTargetRGB);
@@ -656,6 +657,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
           cv::imwrite("verifiedTargetdep"+std::to_string(now_bestCandidate->m_frameIndexJ)+".png", cvTargetDepth);
           save_cnt1++;
       }
+	  */
 #else
       // If we didn't build with OpenCV, we can't do any verification, so just mark the relocalisation as verified and hope for the best.
       verified = true;
@@ -681,7 +683,8 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
           count++;
           ORUtils::SE3Pose nextFrameLocalPose = m_trajectories[sceneJ][checkNextFrameIndex];
           ORUtils::SE3Pose nextFramePredPose = ORUtils::SE3Pose(nextFrameLocalPose.GetM() * now_bestCandidate->m_relativePose->GetInvM());
-          m_visualisationGenerator->generate_voxel_visualisation(
+          /*
+		  m_visualisationGenerator->generate_voxel_visualisation(
             rgb, slamStateI->get_voxel_scene(), nextFramePredPose, viewI->calib.intrinsics_rgb,
             renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
           );
@@ -693,7 +696,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
           cv::Mat3b cvNextFrameSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
           cv::imwrite("Source-"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkNextFrameIndex)+".png", cvNextFrameSourceRGB);
           cv::imwrite("Target-"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkNextFrameIndex)+".png", cvNextFrameTargetRGB);
-
+			*/
           m_visualisationGenerator->generate_depth_from_voxels(
             depth, slamStateI->get_voxel_scene(), nextFramePredPose, viewI->calib.intrinsics_d,
             renderStateD, DepthVisualiser::DT_ORTHOGRAPHIC
@@ -740,7 +743,8 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
           printf("this is another frame: %d\n", checkPrevFrameIndex);
           ORUtils::SE3Pose prevFrameLocalPose = m_trajectories[sceneJ][checkPrevFrameIndex];
           ORUtils::SE3Pose prevFramePredPose = ORUtils::SE3Pose(prevFrameLocalPose.GetM() * now_bestCandidate->m_relativePose->GetInvM());
-          m_visualisationGenerator->generate_voxel_visualisation(
+          /*
+		  m_visualisationGenerator->generate_voxel_visualisation(
             rgb, slamStateI->get_voxel_scene(), prevFramePredPose, viewI->calib.intrinsics_rgb,
             renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
           );
@@ -752,7 +756,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
           cv::Mat3b cvPrevFrameSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
           cv::imwrite("Source"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkPrevFrameIndex)+".png", cvPrevFrameSourceRGB);
           cv::imwrite("Target"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkPrevFrameIndex)+".png", cvPrevFrameTargetRGB);
-          
+          */
           m_visualisationGenerator->generate_depth_from_voxels(
             depth, slamStateI->get_voxel_scene(), prevFramePredPose, viewI->calib.intrinsics_d,
             renderStateD, DepthVisualiser::DT_ORTHOGRAPHIC

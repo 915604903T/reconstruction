@@ -97,9 +97,9 @@ bool Application::run()
   { 
 	time(&end);
 	cost = difftime(end, start);
-	/*if (cost>40.0) {
+	if (cost>30.0) {
 		break;
-	}*/
+	}
     // Check to see if the user wants to quit the application, and quit if necessary. Note that if we
     // are running in batch mode, we quit directly, rather than saving a mesh of the scene on exit.
     bool eventQuit = !process_events();
