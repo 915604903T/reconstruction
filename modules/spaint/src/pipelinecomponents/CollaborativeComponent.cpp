@@ -20,9 +20,14 @@ using namespace itmx;
 #include <opencv2/highgui.hpp>
 #include <opencv2/xfeatures2d.hpp>
 
+#include <boost/atomic.hpp>
+#include <boost/optional.hpp>
+#include <boost/thread.hpp>
+
 using namespace std;
 using namespace cv;
 using namespace cv::xfeatures2d;
+
 
 #include <boost/bind.hpp>
 using boost::bind;
@@ -588,6 +593,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
     // If relocalisation succeeded, verify the result by thresholding the difference between the
     // source depth image and a rendered depth image of the target scene at the relevant pose.
     bool verified = false;
+	  cv::Mat3b cvTargetRGB;
     if(result && (result->quality == Relocaliser::RELOCALISATION_GOOD || m_considerPoorRelocalisations))
     {
 #ifdef WITH_OPENCV
@@ -603,7 +609,7 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       );
 
       // Make OpenCV copies of the synthetic images of the target scene.
-      cv::Mat3b cvTargetRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
+      cvTargetRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
       cv::Mat1b cvTargetDepth = OpenCVUtil::make_greyscale_image(depth->GetData(MEMORYDEVICE_CPU), depth->noDims.x, depth->noDims.y, OpenCVUtil::ROW_MAJOR, 100.0f);
 	  // cv::imwrite("target.png", cvTargetRGB);
 	  // std::cout << "save target png\n";
@@ -648,7 +654,24 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       // Decide whether or not to verify the relocalisation, based on the average depth difference and the fraction of the target depth image that is valid.
       // verified = is_verified(*m_bestCandidate);
       verified = is_verified(*now_bestCandidate);
-      if (verified) {
+	   if (!verified) {
+        int indexJ = now_bestCandidate->m_frameIndexJ;
+        // cv::imwrite("Failed-NewSource-" + std::to_string(indexJ)+".png", cvSourceRGB);
+        // cv::imwrite("Failed-NewTarget-" + std::to_string(indexJ)+".png", cvTargetRGB);
+      }
+	  /*
+	  if (verified) {
+		int indexJ = now_bestCandidate->m_frameIndexJ;
+        cv::imwrite("Success-NewSource-" + std::to_string(indexJ)+".png", cvSourceRGB);
+        cv::imwrite("Success-NewTarget-" + std::to_string(indexJ)+".png", cvTargetRGB);
+	  }else {
+		int indexJ = now_bestCandidate->m_frameIndexJ;
+        cv::imwrite("Failed-NewSource-" + std::to_string(indexJ)+".png", cvSourceRGB);
+        cv::imwrite("Failed-NewTarget-" + std::to_string(indexJ)+".png", cvTargetRGB); 
+	  }
+	  */
+      /*
+	  if (verified) {
 		  printf("save cnt: %d\n", save_cnt1);
           cv::imwrite("verifiedSource"+std::to_string(now_bestCandidate->m_frameIndexJ)+".png", cvSourceRGB);
           cv::imwrite("verifiedTarget"+std::to_string(now_bestCandidate->m_frameIndexJ)+".png", cvTargetRGB);
@@ -656,9 +679,10 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
           cv::imwrite("verifiedTargetdep"+std::to_string(now_bestCandidate->m_frameIndexJ)+".png", cvTargetDepth);
           save_cnt1++;
       }
+	  */
 #else
       // If we didn't build with OpenCV, we can't do any verification, so just mark the relocalisation as verified and hope for the best.
-      verified = true;
+//      verified = true;
 #endif
     }
 
@@ -675,13 +699,14 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       int successTimes = 0;
       for (int i = 1; i<=3; i++) {
         // use rgb render picture to calculate similarity
-        int checkNextFrameIndex = now_bestCandidate->m_frameIndexJ + i*10;
+        int checkNextFrameIndex = now_bestCandidate->m_frameIndexJ + i*15;
         if (checkNextFrameIndex < sceneJFrameSize) {
           printf("this is another frame: %d\n", checkNextFrameIndex);
           count++;
           ORUtils::SE3Pose nextFrameLocalPose = m_trajectories[sceneJ][checkNextFrameIndex];
           ORUtils::SE3Pose nextFramePredPose = ORUtils::SE3Pose(nextFrameLocalPose.GetM() * now_bestCandidate->m_relativePose->GetInvM());
-          m_visualisationGenerator->generate_voxel_visualisation(
+          /*
+		  m_visualisationGenerator->generate_voxel_visualisation(
             rgb, slamStateI->get_voxel_scene(), nextFramePredPose, viewI->calib.intrinsics_rgb,
             renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
           );
@@ -691,9 +716,9 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
             renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
           );
           cv::Mat3b cvNextFrameSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
-          cv::imwrite("Source-"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkNextFrameIndex)+".png", cvNextFrameSourceRGB);
-          cv::imwrite("Target-"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkNextFrameIndex)+".png", cvNextFrameTargetRGB);
-
+          cv::imwrite("NewSource-"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkNextFrameIndex)+".png", cvNextFrameSourceRGB);
+          cv::imwrite("NewTarget-"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkNextFrameIndex)+".png", cvNextFrameTargetRGB);
+		 */
           m_visualisationGenerator->generate_depth_from_voxels(
             depth, slamStateI->get_voxel_scene(), nextFramePredPose, viewI->calib.intrinsics_d,
             renderStateD, DepthVisualiser::DT_ORTHOGRAPHIC
@@ -734,13 +759,14 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
             successTimes++;
           }
         }
-        int checkPrevFrameIndex = now_bestCandidate->m_frameIndexJ - i*10;
+        int checkPrevFrameIndex = now_bestCandidate->m_frameIndexJ - i*15;
         if (checkPrevFrameIndex >= 0) {
           count++;
           printf("this is another frame: %d\n", checkPrevFrameIndex);
           ORUtils::SE3Pose prevFrameLocalPose = m_trajectories[sceneJ][checkPrevFrameIndex];
           ORUtils::SE3Pose prevFramePredPose = ORUtils::SE3Pose(prevFrameLocalPose.GetM() * now_bestCandidate->m_relativePose->GetInvM());
-          m_visualisationGenerator->generate_voxel_visualisation(
+          /*
+		  m_visualisationGenerator->generate_voxel_visualisation(
             rgb, slamStateI->get_voxel_scene(), prevFramePredPose, viewI->calib.intrinsics_rgb,
             renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
           );
@@ -750,9 +776,9 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
             renderStateRGB, VisualisationGenerator::VT_SCENE_COLOUR, boost::none
           );
           cv::Mat3b cvPrevFrameSourceRGB = OpenCVUtil::make_rgb_image(rgb->GetData(MEMORYDEVICE_CPU), rgb->noDims.x, rgb->noDims.y);
-          cv::imwrite("Source"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkPrevFrameIndex)+".png", cvPrevFrameSourceRGB);
-          cv::imwrite("Target"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkPrevFrameIndex)+".png", cvPrevFrameTargetRGB);
-          
+          cv::imwrite("NewSource"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkPrevFrameIndex)+".png", cvPrevFrameSourceRGB);
+          cv::imwrite("NewTarget"+ std::to_string(tmpIndexJ) + "-"+ std::to_string(checkPrevFrameIndex)+".png", cvPrevFrameTargetRGB);
+          */
           m_visualisationGenerator->generate_depth_from_voxels(
             depth, slamStateI->get_voxel_scene(), prevFramePredPose, viewI->calib.intrinsics_d,
             renderStateD, DepthVisualiser::DT_ORTHOGRAPHIC
@@ -798,10 +824,56 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
       // now_bestCandidate->m_relativePose = ORUtils::SE3Pose(result->pose.GetInvM() * now_bestCandidate->m_localPoseJ.GetM());
       double rate = (double)successTimes/(double)count;
       if (rate > 0.6) {
-      m_context->get_collaborative_pose_optimiser()->add_relative_transform_sample(now_bestCandidate->m_sceneI, now_bestCandidate->m_sceneJ, *now_bestCandidate->m_relativePose, m_mode);
-      std::cout << "succeeded!" << std::endl;
+        m_context->get_collaborative_pose_optimiser()->add_relative_transform_sample(now_bestCandidate->m_sceneI, now_bestCandidate->m_sceneJ, *now_bestCandidate->m_relativePose, m_mode);
+        std::cout << "succeeded!" << std::endl;
+	      int indexJ = now_bestCandidate->m_frameIndexJ;
+        
+        const std::string posesSpecifierTarget = "new-success-target-" + std::to_string(indexJ);
+        std::ofstream fsTarget("poses/" + posesSpecifierTarget + ".txt");
+        if(!fsTarget)
+        {
+          std::cerr << "Warning: Could not open file to save poses\n";
+        }else {
+          fsTarget << result->pose.GetM() << "\n";
+        }
+
+        const std::string posesSpecifierSource = "new-success-source-" + std::to_string(indexJ);
+        // const boost::filesystem::path pSource("poses/" + posesSpecifierSource + ".txt");
+        std::ofstream fsSource("poses/" + posesSpecifierSource + ".txt");
+        if(!fsSource)
+        {
+          std::cerr << "Warning: Could not open file to save poses\n";
+        }else {
+          fsSource <<  now_bestCandidate->m_localPoseJ.GetM() << "\n";
+        }
+
+        // cv::imwrite("Success-NewSource-" + std::to_string(indexJ)+".png", cvSourceRGB);
+        // cv::imwrite("Success-NewTarget-" + std::to_string(indexJ)+".png", cvTargetRGB);
       }else {
-         std::cout << "failed :( because next prev not match" << std::endl;
+		    std::cout << "failed :( because next prev not match" << std::endl;
+        int indexJ = now_bestCandidate->m_frameIndexJ;
+
+        const std::string posesSpecifierTarget = "new-fail-target-" + std::to_string(indexJ);
+        // const boost::filesystem::path pTarget("poses/" + posesSpecifierTarget + ".txt");
+        std::ofstream fsTarget("poses/" + posesSpecifierTarget + ".txt");
+        if(!fsTarget)
+        {
+          std::cerr << "Warning: Could not open file to save poses\n";
+        }else {
+          fsTarget << result->pose.GetM() << "\n";
+        }
+        const std::string posesSpecifierSource = "new-fail-source-" + std::to_string(indexJ);
+        // const boost::filesystem::path pSource("poses/" + posesSpecifierSource + ".txt");
+        std::ofstream fsSource("poses/" + posesSpecifierSource + ".txt");
+        if(!fsSource)
+        {
+          std::cerr << "Warning: Could not open file to save poses\n";
+        }else {
+          fsSource <<  now_bestCandidate->m_localPoseJ.GetM() << "\n";
+        }
+
+        // cv::imwrite("Failed-NewSource-" + std::to_string(indexJ)+".png", cvSourceRGB);
+        // cv::imwrite("Failed-NewTarget-" + std::to_string(indexJ)+".png", cvTargetRGB);
       }
 #if defined(WITH_OPENCV) && DEBUGGING
       cv::waitKey(1);
@@ -810,7 +882,25 @@ void CollaborativeComponent::run_relocalisation(cpu_set_t mask)
     else
     {
       std::cout << "failed :(" << std::endl;
-
+      if(result && (result->quality == Relocaliser::RELOCALISATION_GOOD || m_considerPoorRelocalisations)) {
+        int indexJ = now_bestCandidate->m_frameIndexJ;
+        const std::string posesSpecifierTarget = "new-fail-target-" + std::to_string(indexJ);
+        // const bf::path pTarget("poses/" + posesSpecifierTarget + ".txt");
+        std::ofstream fsTarget("poses/" + posesSpecifierTarget + ".txt");
+        if(!fsTarget) {
+          std::cerr << "Warning: Could not open file to save poses\n";
+        }else {
+          fsTarget << result->pose.GetM() << "\n";
+        }
+        const std::string posesSpecifierSource = "new-fail-source-" + std::to_string(indexJ);
+        // const bf::path pSource("poses/" + posesSpecifierSource + ".txt");
+        std::ofstream fsSource("poses/" + posesSpecifierSource + ".txt");
+        if(!fsSource) {
+          std::cerr << "Warning: Could not open file to save poses\n";
+        }else {
+          fsSource <<  now_bestCandidate->m_localPoseJ.GetM() << "\n";
+        }
+      }
 #if defined(WITH_OPENCV) && DEBUGGING
       cv::waitKey(1);
 #endif
@@ -953,4 +1043,6 @@ bool CollaborativeComponent::update_trajectories()
 }
 
 }
+
+
 
