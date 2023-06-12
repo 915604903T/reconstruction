@@ -132,7 +132,7 @@ void MultiScenePipeline::save_models(const bf::path& outputDir) const
   // Save the models for each scene into a separate subdirectory.
   for(std::map<std::string,SLAMComponent_Ptr>::const_iterator it = m_slamComponents.begin(), iend = m_slamComponents.end(); it != iend; ++it)
   {
-    const bf::path scenePath = outputDir / it->first;
+    const bf::path scenePath = outputDir / "model"; 
     std::cout << "Saving models for " << it->first << " in: " << scenePath << '\n';
     it->second->save_models(scenePath.string());
   }

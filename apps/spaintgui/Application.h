@@ -45,6 +45,9 @@ public:
 
   //#################### PRIVATE VARIABLES ####################
 private:
+  /** Save model and relocalisation to this file. */
+  std::string m_name;
+
   /** The index of the sub-window with which the user is interacting. */
   size_t m_activeSubwindowIndex;
 
@@ -113,7 +116,7 @@ public:
    * \param pipeline        The multi-scene pipeline that the application should use.
    * \param renderFiducials Whether or not to render the fiducials (if any) that have been detected in the 3D scene.
    */
-  Application(const MultiScenePipeline_Ptr& pipeline, bool renderFiducials = false);
+  Application(const MultiScenePipeline_Ptr& pipeline, bool renderFiducials = false, std::string name = "");
 
   //#################### PUBLIC MEMBER FUNCTIONS ####################
 public:
