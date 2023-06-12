@@ -7,6 +7,7 @@
 #define H_SPAINT_COLLABORATIVEPOSEOPTIMISER
 
 #include <set>
+#include <map>
 
 #include <boost/atomic.hpp>
 #include <boost/optional.hpp>
@@ -30,6 +31,9 @@ public:
 
   //#################### PRIVATE VARIABLES ####################
 private:
+  /** The map of the scene ID and Scene Name*/
+  std::map<std::string, std::string> m_sceneID2Name;
+
   /** Estimates of the poses of the different scenes in the global coordinate system. */
   std::map<std::string,ORUtils::SE3Pose> m_estimatedGlobalPoses;
 
@@ -91,6 +95,13 @@ public:
   //#################### PUBLIC MEMBER FUNCTIONS ####################
 public:
   /**
+   * \brief set map for SceneID and its name
+   *
+   * \param sceneID2Name The map to set.
+   */
+  void set_sceneID2Name(const std::map<std::string, std::string>& sceneID2Name);
+
+  /**
    * \brief Adds a sample of the transformation from the coordinate system of scene j to that of scene i.
    *
    * \note  We also add the inverse of the sample passed in as a sample of the transformation from the
@@ -114,6 +125,11 @@ public:
    * \brief Terminates the pose graph optimiser.
    */
   void terminate();
+
+  /**
+   * \brief Terminates the pose graph optimiser.
+   */
+  bool isSuccess() const;
 
   /**
    * \brief Attempts to get the estimated global pose (if any) of the specified scene.

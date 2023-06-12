@@ -21,9 +21,9 @@ SpaintSequence::SpaintSequence(const bf::path& dir, size_t initialFrameNumber, d
 : Sequence(initialFrameNumber), m_depthNoiseSigma(depthNoiseSigma), m_dir(dir), m_missingDepthFraction(missingDepthFraction)
 {
   // Try to figure out the format of the sequence stored in the directory (we only check the depth images, since the colour ones might be missing).
+  /*
   const bool sevenScenesNaming = bf::is_regular_file(dir / "frame-000000.depth.png");
   const bool spaintNaming = bf::is_regular_file(dir / "depthm000000.pgm");
-
   // Determine the depth/RGB/pose masks.
   if(sevenScenesNaming && spaintNaming)
   {
@@ -45,8 +45,14 @@ SpaintSequence::SpaintSequence(const bf::path& dir, size_t initialFrameNumber, d
   }
   else
   {
-    throw std::runtime_error("Error: The directory '" + dir.string() + "' does not contain depth images that follow a known naming convention.");
-  }
+  */
+    // throw std::runtime_error("Error: The directory '" + dir.string() + "' does not contain depth images that follow a known naming convention.");
+    //only need pose file
+    m_depthImageMask = "";
+    m_poseFileMask = (dir / "frame-%06i.pose.txt").string();
+    m_rgbImageMask = "";
+    m_semanticImageMask = "";
+  //}
 }
 
 SpaintSequence::SpaintSequence(const std::string& depthImageMask, const std::string& rgbImageMask, const std::string& poseFileMask, const std::string& semanticImageMask,

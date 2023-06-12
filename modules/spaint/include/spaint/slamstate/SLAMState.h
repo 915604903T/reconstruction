@@ -66,6 +66,9 @@ private:
   /** The current reconstructed surfel scene. */
   SpaintSurfelScene_Ptr m_surfelScene;
 
+  /** The tracking controller. */
+  TrackingController_Ptr m_trackingController;
+
   /** The current tracking state (containing the camera pose and additional tracking information used by InfiniTAM). */
   TrackingState_Ptr m_trackingState;
 
@@ -286,6 +289,13 @@ public:
    * \param surfelScene The surfel scene.
    */
   void set_surfel_scene(const SpaintSurfelScene_Ptr& surfelScene);
+
+    /**
+   * \brief Sets the current tracking controller.
+   *
+   * \param trackingState The new current tracking controller.
+   */
+  void set_tracking_controller(const TrackingController_Ptr& trackingController);
 
   /**
    * \brief Sets the current tracking state.

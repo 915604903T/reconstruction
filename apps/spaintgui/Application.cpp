@@ -5,6 +5,11 @@
 
 #include "Application.h"
 using namespace tvginput;
+#include <time.h>  
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include <fstream>
 #include <stdexcept>
@@ -51,13 +56,14 @@ using namespace tvgutil;
 
 //#################### CONSTRUCTORS ####################
 
-Application::Application(const MultiScenePipeline_Ptr& pipeline, bool renderFiducials)
+Application::Application(const MultiScenePipeline_Ptr& pipeline, const std::map<std::string, std::string> &sceneID2Name, bool renderFiducials)
 : m_activeSubwindowIndex(0),
   m_batchModeEnabled(false),
   m_commandManager(10),
   m_pauseBetweenFrames(true),
   m_paused(true),
   m_pipeline(pipeline),
+  m_sceneID2Name(sceneID2Name),
   m_renderFiducials(renderFiducials),
   m_saveModelsOnExit(false),
   m_usePoseMirroring(true),
@@ -84,8 +90,16 @@ Application::Application(const MultiScenePipeline_Ptr& pipeline, bool renderFidu
 
 bool Application::run()
 {
+  time_t start, end;
+  double cost = 0;
+  time(&start);
   for(int i=0;;i++)
-  {
+  { 
+	time(&end);
+	cost = difftime(end, start);
+	if (cost>30.0) {
+		break;
+	}
     // Check to see if the user wants to quit the application, and quit if necessary. Note that if we
     // are running in batch mode, we quit directly, rather than saving a mesh of the scene on exit.
     bool eventQuit = !process_events();
@@ -98,7 +112,6 @@ bool Application::run()
 
     // Take action as relevant based on the current input state.
     process_input();
-
     // If the application is unpaused, process a new frame.
     if(!m_paused)
     {
@@ -118,8 +131,9 @@ bool Application::run()
         break;
       }
     }
-
+	usleep(100000);
     // Render the scene.
+    /*
     m_renderer->render(m_fracWindowPos, m_renderFiducials);
 
     // If we're running a mapping server and we want to render any scene images requested by remote clients, do so.
@@ -135,13 +149,14 @@ bool Application::run()
 
     // If desired, pause at the end of each frame for debugging purposes.
     if(m_pauseBetweenFrames) m_paused = true;
+    */
   }
 
   // If desired, save a mesh of the scene before the application terminates.
   if(m_saveMeshOnExit) save_mesh();
 
   // If desired, save a model of each scene before the application terminates.
-  if(m_saveModelsOnExit) save_models();
+  // if(m_saveModelsOnExit) save_models();
 
   return true;
 }
@@ -959,16 +974,23 @@ void Application::save_mesh() const
   const std::vector<std::string> sceneIDs = model->get_scene_ids();
 
   // Determine the (base) filename to use for the mesh, based on either the experiment tag (if specified) or the current timestamp (otherwise).
-  std::string meshBaseName = settings->get_first_value<std::string>("experimentTag", "spaint-" + TimeUtil::get_iso_timestamp());
+  // std::string meshBaseName = settings->get_first_value<std::string>("experimentTag", "spaint-" + TimeUtil::get_iso_timestamp());
 
   // Determine the directory into which to save the meshes, and make sure that it exists.
+  /* 
   boost::filesystem::path dir = find_subdir_from_executable("meshes");
   if(sceneIDs.size() > 1) dir = dir / meshBaseName;
   boost::filesystem::create_directories(dir);
+  */
+  if (!(model->get_collaborative_pose_optimiser()->isSuccess())) {
+    return;
+  }
 
   // Mesh each scene independently.
+  std::vector<std::string> mergeFilesName;
+  std::vector<std::string> filesRootName;
   for(size_t sceneIdx = 0; sceneIdx < sceneIDs.size(); ++sceneIdx)
-  {
+  { 
     const std::string& sceneID = sceneIDs[sceneIdx];
     std::cout << "Meshing " << sceneID << " scene.\n";
     SpaintVoxelScene_CPtr scene = model->get_slam_state(sceneID)->get_voxel_scene();
@@ -1011,6 +1033,7 @@ void Application::save_mesh() const
 
       // Next, transform each triangle using the relative transform determined above.
       const Matrix4f transform = *relativeTransform;
+	  std::cout << "transform:\n" << transform << "\n";
       Triangle *trianglesData = triangles->GetData(MEMORYDEVICE_CPU);
       for(size_t triangleIdx = 0; triangleIdx < mesh->noTotalTriangles; ++triangleIdx)
       {
@@ -1024,9 +1047,36 @@ void Application::save_mesh() const
     }
 
     // Save the mesh to disk.
-    const boost::filesystem::path meshPath = dir / (meshBaseName + "_" + sceneID + ".ply");
+    // const boost::filesystem::path meshPath = dir / (meshBaseName + "_" + sceneID + ".ply");
+    auto sceneName = m_sceneID2Name.find(sceneID);
+    const boost::filesystem::path meshPath = sceneName->second + "-" + TimeUtil::get_iso_timestamp() + ".ply";
+    mergeFilesName.push_back(meshPath.string());
     std::cout << "Saving mesh to: " << meshPath << '\n';
     mesh->WritePLY(meshPath.string().c_str());
+  }
+  std::string worldScene = m_sceneID2Name.find("World")->second;
+  std::string localScene = m_sceneID2Name.find("Local1")->second;
+  std::string outputFile = worldScene + "-" + localScene + ".ply";
+  pid_t pid = fork();
+  if (pid < 0) {
+    printf("error create merge program\n");
+    exit(0);
+  }
+  if (pid == 0) {
+    std::cout << "fork python program " << mergeFilesName[0] << " " << mergeFilesName[1] << "\n";
+	char *argv[] = {"python3","mergeMesh.py", 
+					"--file1", const_cast<char*>(mergeFilesName[0].c_str()),
+					"--file2",const_cast<char*>(mergeFilesName[1].c_str()),
+					"--pose", "worldPose.txt",
+					"--output", const_cast<char*>(outputFile.c_str()),
+					NULL};
+	execvp("python3", argv);
+	std::cout << "after execlp python program\n";	
+  }else {
+	std::cout << "this is origin program\n";
+	int status;
+	waitpid(pid, &status, 0);
+	std::cout << "after waitpid\n";
   }
 }
 
@@ -1170,3 +1220,4 @@ void Application::toggle_recording(const std::string& type, boost::optional<tvgu
     std::cout << "[spaint] Started saving " << type << " to " << pathGenerator->get_base_dir() << "...\n";
   }
 }
+

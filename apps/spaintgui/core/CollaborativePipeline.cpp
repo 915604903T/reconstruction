@@ -11,67 +11,49 @@ using namespace spaint;
 
 //#################### CONSTRUCTORS ####################
 
-CollaborativePipeline::CollaborativePipeline(const Settings_Ptr& settings, const std::string& resourcesDir,
-                                             const std::vector<CompositeImageSourceEngine_Ptr>& imageSourceEngines,
-                                             const std::vector<std::string>& trackerConfigs,
-                                             const std::vector<SLAMComponent::MappingMode>& mappingModes,
-                                             const std::vector<SLAMComponent::TrackingMode>& trackingModes,
-                                             bool detectFiducials, const MappingServer_Ptr& mappingServer,
-                                             CollaborationMode collaborationMode)
+CollaborativePipeline::CollaborativePipeline(const Settings_Ptr &settings,
+                                             const std::string &resourcesDir,
+                                             const std::map<std::string, int> &scenesPoseCnt,
+                                             const std::map<std::string, std::string> &sceneID2Name,
+                                             const std::vector<CompositeImageSourceEngine_Ptr> &imageSourceEngines,
+                                             const std::vector<std::string> &trackerConfigs,
+                                             const std::vector<SLAMComponent::MappingMode> &mappingModes,
+                                             const std::vector<SLAMComponent::TrackingMode> &trackingModes,
+                                             bool detectFiducials,
+                                             const MappingServer_Ptr &mappingServer,
+                                             CollaborationMode collaborationMode,
+                                             const std::map<std::string, std::string> &sceneDirs)
   // Note: A minimum of 2 labels is required (background and foreground).
-: MultiScenePipeline("collaborative", settings, resourcesDir, 2, mappingServer),
-  m_collaborationStarted(false),
-  m_detectFiducials(detectFiducials),
-  m_worldIsRemote(imageSourceEngines.empty())
+  : MultiScenePipeline("collaborative", settings, resourcesDir, 2, mappingServer), 
+    m_collaborationStarted(false), 
+    m_detectFiducials(detectFiducials),
+    // m_worldIsRemote(imageSourceEngines.empty()),
+    m_worldIsRemote(false),
+    m_sceneDirs(sceneDirs)
 {
-  if(imageSourceEngines.empty())
+  // If local scenes were specified when the pipeline was instantiated, we add a SLAM component for each such scene.
+  /* for(size_t i = 0, size = imageSourceEngines.size(); i < size; ++i)
   {
-    // The current implementation of spaintgui relies on the existence of a scene called "World".
-    // If no local scenes were specified when the pipeline was instantiated, then we check to
-    // see if a mapping server exists:
-    if(mappingServer)
-    {
-      // If it does, we wait for the first remote client to join instead, and call its scene "World" when it
-      // connects. The creation of the SLAM component for the remote client will block until it does so.
-      add_remote_slam_component(Model::get_world_scene_id(), 0);
-    }
-    else
-    {
-      // Otherwise, no scene called "World" will ever exist, so we throw.
-      throw std::runtime_error("Error: Cannot run a collaborative pipeline without a scene called 'World' (did you mean to specify --runServer?)");
-    }
-  }
-  else
-  {
-    // If local scenes were specified when the pipeline was instantiated, we add a SLAM component for each such scene.
-    for(size_t i = 0, size = imageSourceEngines.size(); i < size; ++i)
-    {
-      const std::string sceneID = i == 0 ? Model::get_world_scene_id() : "Local" + boost::lexical_cast<std::string>(i);
-      m_slamComponents[sceneID].reset(new SLAMComponent(m_model, sceneID, imageSourceEngines[i], trackerConfigs[i], mappingModes[i], trackingModes[i], detectFiducials));
-    }
-  }
-
-  // Finally, we add a collaborative component to handle relocalisation between the different scenes.
- /* std::cout << "after SLAMComponent allocate\n";
-  for(int i = 0; i < 3; ++i)
-  {
-    // Set the GPU as active.
-    ORcudaSafeCall(cudaSetDevice(i));
-
-    // Look up its memory usage.
-    size_t freeMemory, totalMemory;
-    ORcudaSafeCall(cudaMemGetInfo(&freeMemory, &totalMemory));
-
-    // Convert the memory usage to MB.
-    const size_t bytesPerMb = 1024 * 1024;
-    const size_t freeMb = freeMemory / bytesPerMb;
-    const size_t usedMb = (totalMemory - freeMemory) / bytesPerMb;
-    const size_t totalMb = totalMemory / bytesPerMb;
-
-    // Save the memory usage to the output stream.
-    std::cout << i << " freeMb: " << freeMb << ";" << " usedMb: " << usedMb << ";" << " totalMb: "<< totalMb << "\n";
+    const std::string sceneID = i == 0 ? Model::get_world_scene_id() : "Local" + boost::lexical_cast<std::string>(i);
+    m_slamComponents[sceneID].reset(new SLAMComponent(m_model,
+                                                      sceneID,
+                                                      imageSourceEngines[i],
+                                                      trackerConfigs[i],
+                                                      mappingModes[i],
+                                                      trackingModes[i],
+                                                      detectFiducials));
   }*/
-  m_collaborativeComponent.reset(new CollaborativeComponent(m_model, collaborationMode));
+  std::map<std::string, TrackingController_Ptr> trackingControllers;
+  for(size_t i = 0, size = imageSourceEngines.size(); i < size; ++i)
+  {
+    const std::string sceneID = i == 0 ? Model::get_world_scene_id() : "Local" + boost::lexical_cast<std::string>(i);
+    m_slamComponents[sceneID].reset(new SLAMComponent(
+        m_model, sceneID, imageSourceEngines[i], trackerConfigs[i], mappingModes[i], trackingModes[i], detectFiducials));
+    load_models(m_slamComponents[sceneID], m_sceneDirs[sceneID]);
+    trackingControllers[sceneID] = m_slamComponents[sceneID]->get_tracking_controller();
+  }
+
+  m_collaborativeComponent.reset(new CollaborativeComponent(m_model, collaborationMode, scenesPoseCnt, trackingControllers, sceneID2Name));
 }
 
 //#################### PUBLIC MEMBER FUNCTIONS ####################
@@ -79,6 +61,7 @@ CollaborativePipeline::CollaborativePipeline(const Settings_Ptr& settings, const
 std::set<std::string> CollaborativePipeline::run_main_section()
 {
   // If we're running a mapping server, add SLAM components for any newly-connected remote clients.
+  /*
   if(m_model->get_mapping_server()) check_for_new_clients();
 
   // Run the main section of the pipeline.
@@ -87,8 +70,17 @@ std::set<std::string> CollaborativePipeline::run_main_section()
   // Provided at least one of the scenes has started fusion, run the collaborative pose estimation process.
   m_collaborationStarted = m_collaborationStarted || !scenesProcessed.empty();
   if(m_collaborationStarted) m_collaborativeComponent->run_collaborative_pose_estimation();
-
-  return scenesProcessed;
+  */
+  std::set<std::string> result;
+  for(std::map<std::string,SLAMComponent_Ptr>::const_iterator it = m_slamComponents.begin(), iend = m_slamComponents.end(); it != iend; ++it)
+  {
+    bool isConsistent = m_collaborativeComponent->run_collaborative_pose_estimation();
+    if (!isConsistent) 
+    {
+      result.insert(it->first);
+    }
+  }
+  return result;
 }
 
 void CollaborativePipeline::set_mode(Mode mode)
@@ -99,17 +91,20 @@ void CollaborativePipeline::set_mode(Mode mode)
 
 //#################### PRIVATE MEMBER FUNCTIONS ####################
 
-void CollaborativePipeline::add_remote_slam_component(const std::string& sceneID, int remoteClientID)
+void CollaborativePipeline::add_remote_slam_component(const std::string &sceneID, int remoteClientID)
 {
-  std::cout << "Instantiating a SLAM component for client '" << remoteClientID << "', with local scene ID '" << sceneID << "'" << std::endl;
+  std::cout << "Instantiating a SLAM component for client '" << remoteClientID << "', with local scene ID '" << sceneID
+            << "'" << std::endl;
 
   // Note: We create remote clients that are voxel-only and have no support for fiducials.
-  const MappingServer_Ptr& mappingServer = m_model->get_mapping_server();
+  const MappingServer_Ptr &mappingServer = m_model->get_mapping_server();
   const ImageSourceEngine_Ptr imageSourceEngine(new RemoteImageSourceEngine(mappingServer, remoteClientID));
-  const std::string trackerConfig = "<tracker type='remote'><params>" + boost::lexical_cast<std::string>(remoteClientID) + "</params></tracker>";
+  const std::string trackerConfig =
+      "<tracker type='remote'><params>" + boost::lexical_cast<std::string>(remoteClientID) + "</params></tracker>";
   const SLAMComponent::MappingMode mappingMode = SLAMComponent::MAP_VOXELS_ONLY;
   const SLAMComponent::TrackingMode trackingMode = SLAMComponent::TRACK_VOXELS;
-  m_slamComponents[sceneID].reset(new SLAMComponent(m_model, sceneID, imageSourceEngine, trackerConfig, mappingMode, trackingMode, m_detectFiducials));
+  m_slamComponents[sceneID].reset(new SLAMComponent(
+      m_model, sceneID, imageSourceEngine, trackerConfig, mappingMode, trackingMode, m_detectFiducials));
   mappingServer->set_scene_id(remoteClientID, sceneID);
 }
 
@@ -122,7 +117,9 @@ void CollaborativePipeline::check_for_new_clients()
     const int clientID = activeClients[i];
 
     // Determine what the scene for this client should be called.
-    const std::string sceneID = m_worldIsRemote && clientID == 0 ? Model::get_world_scene_id() : "Remote" + boost::lexical_cast<std::string>(clientID);
+    const std::string sceneID = m_worldIsRemote && clientID == 0
+                                    ? Model::get_world_scene_id()
+                                    : "Remote" + boost::lexical_cast<std::string>(clientID);
 
     // If a SLAM component for this client does not yet exist, add one now.
     if(m_slamComponents.find(sceneID) == m_slamComponents.end())

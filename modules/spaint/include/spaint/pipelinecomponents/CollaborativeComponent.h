@@ -10,6 +10,9 @@
 #include <boost/thread.hpp>
 #include <boost/timer/timer.hpp>
 
+#include <string.h>
+#include <sched.h>
+
 #include <orx/relocalisation/Relocaliser.h>
 
 #include <tvgutil/numbers/RandomNumberGenerator.h>
@@ -21,6 +24,9 @@
 
 namespace spaint {
 
+const int relocalisationThreadsCount = 1;
+const int bestCandidateMaxCount = 1;
+
 /**
  * \brief An instance of this pipeline component can be used to determine the relative poses between agents participating in collaborative SLAM.
  */
@@ -30,6 +36,8 @@ class CollaborativeComponent
 private:
   /** The best relocalisation candidate, as chosen by the scheduler. This will be the next relocalisation attempted. */
   boost::shared_ptr<CollaborativeRelocalisation> m_bestCandidate;
+
+  std::list<boost::shared_ptr<CollaborativeRelocalisation>> m_bestCandidates = std::list<boost::shared_ptr<CollaborativeRelocalisation>>();
 
   /** The timer used to compute the time spent collaborating. */
   boost::optional<boost::timer::cpu_timer> m_collaborationTimer;
@@ -46,6 +54,9 @@ private:
   /** The current frame index (in practice, the number of times that run_collaborative_pose_estimation has been called). */
   int m_frameIndex;
 
+  /** The number of times that run_collaborative_pose_estimation has been called. */
+  int m_collaborativeCnt;
+
   /** The mode in which the collaboration reconstruction should run. */
   CollaborationMode m_mode;
 
@@ -60,6 +71,8 @@ private:
 
   /** The thread on which relocalisations should be attempted. */
   boost::thread m_relocalisationThread;
+
+  std::vector<boost::thread> m_relocalisationThreads = std::vector<boost::thread>(relocalisationThreadsCount);
 
   /** The results of every relocalisation that has been attempted. */
   std::deque<CollaborativeRelocalisation> m_results;
@@ -79,6 +92,9 @@ private:
   /** Whether or not to compute the time spent collaborating. */
   bool m_timeCollaboration;
 
+  /** Tracking controller to update pose */
+  std::map<std::string, TrackingController_Ptr> m_trackingControllers;
+
   /** The trajectories followed by the cameras that reconstructed each of the different scenes (only poses where tracking succeeded are stored). */
   std::map<std::string,std::deque<ORUtils::SE3Pose> > m_trajectories;
 
@@ -96,7 +112,10 @@ public:
    * \param context The shared context needed for collaborative SLAM.
    * \param mode    The mode in which the collaborative reconstruction should run.
    */
-  CollaborativeComponent(const CollaborativeContext_Ptr& context, CollaborationMode mode);
+  CollaborativeComponent(const CollaborativeContext_Ptr& context, CollaborationMode mode, 
+                         const std::map<std::string, int> &scenesPoseCnt, 
+                         const std::map<std::string, TrackingController_Ptr> &trackingControllers,
+                         const std::map<std::string, std::string> &sceneID2Name);
 
   //#################### DESTRUCTOR ####################
 public:
@@ -110,7 +129,7 @@ public:
   /**
    * \brief Attempts to estimate the poses of the different scenes involved in the collaborative reconstruction.
    */
-  void run_collaborative_pose_estimation();
+  bool run_collaborative_pose_estimation();
 
   //#################### PRIVATE MEMBER FUNCTIONS ####################
 private:
@@ -148,7 +167,8 @@ private:
   /**
    * \brief Runs the relocalisation thread, repeatedly attempting scheduled relocalisations until the collaborative component is destroyed.
    */
-  void run_relocalisation();
+  // void run_relocalisation();
+  void run_relocalisation(cpu_set_t mask);
 
   /**
    * \brief Scores all of the specified candidate relocalisations to allow one of them to be chosen for a relocalisation attempt.

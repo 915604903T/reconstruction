@@ -168,6 +168,11 @@ void SLAMState::set_surfel_scene(const SpaintSurfelScene_Ptr& surfelScene)
   m_surfelScene = surfelScene;
 }
 
+void SLAMState::set_tracking_controller(const TrackingController_Ptr& trackingController)
+{
+  m_trackingController = trackingController;
+}
+
 void SLAMState::set_tracking_state(const TrackingState_Ptr& trackingState)
 {
   m_trackingState = trackingState;

@@ -37,7 +37,8 @@ ScoreForestRelocaliser::ScoreForestRelocaliser(const SettingsContainer_CPtr& set
   }
   else
   {
-    const std::string modelFilename = m_settings->get_first_value<std::string>(settingsNamespace + "modelFilename", (find_subdir_from_executable("resources") / "DefaultRelocalisationForest.rf").string());
+    // const std::string modelFilename = m_settings->get_first_value<std::string>(settingsNamespace + "modelFilename", (find_subdir_from_executable("resources") / "DefaultRelocalisationForest.rf").string());
+    const std::string modelFilename = "randomForest/DefaultRelocalisationForest.rf";
     std::cout << "Loading relocalisation forest from: " << modelFilename << '\n';
     m_scoreForest = DecisionForestFactory<DescriptorType,FOREST_TREE_COUNT>::make_forest(modelFilename, deviceType);
   }
